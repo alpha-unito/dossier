@@ -1,0 +1,35 @@
+{% extends "page.html" %}
+
+{% block main %}
+<div class="container">
+    {% block heading %}
+    <div class="row text-center">
+        <h1>Tenant Selection</h1>
+    </div>
+    {% endblock %}
+    <div class="row col-sm-offset-2 col-sm-8">
+        <form enctype="multipart/form-data" id="spawn_form" action="{{url}}" method="post" role="form">
+            {{dossier_spawner_tenants_form | safe}}
+            <br>
+            <div class="feedback-container">
+                <input type="submit" value="Select" class="btn btn-jupyter form-control">
+                <div class="feedback-widget hidden">
+                    <i class="fa fa-spinner"></i>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+{{ super() }}
+<script>
+    $('form').submit((e) => {
+        const form = $(e.target);
+        form.find('.feedback-container>input').attr('disabled', true);
+        form.find('.feedback-container>*').toggleClass('hidden');
+        form.find('.feedback-widget>*').toggleClass('fa-pulse');
+    });
+</script>
+{% endblock %}
