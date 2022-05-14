@@ -2,13 +2,12 @@ import string
 import time
 
 import escapism
-from jinja2 import BaseLoader
-from jinja2 import Environment
+from jinja2 import BaseLoader, Environment
 from kubernetes.client import ApiException
 from kubespawner import KubeSpawner
 from kubespawner.clients import shared_client
 from slugify import slugify
-from traitlets import Unicode, default
+from traitlets import Unicode
 
 
 def _get_resource_amount(value, unit):
@@ -88,6 +87,19 @@ class DossierKubeSpawner(KubeSpawner):
         """
     )
 
+    default_resource_policy = Unicode(
+        "fixed",
+        config=True,
+        help="""
+            Resource policy to be used to allow users select the Notebook resourcs.
+
+            Supported values are:
+              - `fixed` -> default limit ranges are used
+              - `profiles` -> users can select between multiple available profiles
+              - `manual` -> users can manually specify their desired resources
+            """
+    )
+
     default_tenant_name = Unicode(
         None,
         config=True,
@@ -124,54 +136,66 @@ class DossierKubeSpawner(KubeSpawner):
             </div>
         {% endif %}
         
-        <h2>Resources Selection</h2>
-        {% for resource in resources %}
-            {% set unit = "mUnits" if resource.unit == "element" else "bytes" %}
-            <div class='form-group dossier-options-form-group' id='dossier-resource-{{ resource.name }}'>
-                {% if resource.max %}
-                <label for="resource-item-{{ resource.name }}" class='form-control input-group'>
-                    <div class="col-md-12">
-                        {{ resource.display_name }} (between {{ resource.min }} and {{ resource.max }} {{ unit }}):
-                        <input
-                            class="form-control"
-                            type="range"
-                            id="resource-item-{{ resource.name }}"
-                            name="{{ resource.name }}"
-                            min="{{ resource.min }}"
-                            max="{{ resource.max }}"
-                            step="{{ resource.step }}"
-                            oninput="this.nextElementSibling.value = this.value"
-                            {% if resource.default %}
-                            value="{{ resource.default }}"
-                            {% endif %}
-                        >
-                        <output>
-                            {% if resource.default %}
-                            {{ resource.default }}
-                            {% endif %}
-                        </output>
-                    </div>
-                </label>
-                {% else %}
-                <label for="resource-item-{{ resource.name }}" class="form-control input-group">
-                    <div class='col-md-12'>
-                        {{ resource.display_name }} ({{ unit }}):
-                        <input
-                            class="form-control"
-                            type="number"
-                            id="resource-item-{{ resource.name }}"
-                            name="{{ resource.name }}"
-                            min="{{ resource.min }}"
-                            {% if resource.default %}
-                            value="{ resource.default }}"
-                            {% endif %}
-                        >
-                    </div>
-                </label>
-                {% endif %}
-            </div>
-        {% endfor %}
-        </div>
+        {% if resource_policy == "manual" %}
+            <h2>Resources Selection</h2>
+            {% for resource in resources %}
+                {% set unit = "mUnits" if resource.unit == "element" else "bytes" %}
+                <div class='form-group dossier-options-form-group' id='dossier-resource-{{ resource.name }}'>
+                    {% if resource.max %}
+                    <label for="resource-item-{{ resource.name }}" class='form-control input-group'>
+                        <div class="col-md-12">
+                            {{ resource.display_name }} (between {{ resource.min }} and {{ resource.max }} {{ unit }}):
+                            <input
+                                class="form-control"
+                                type="range"
+                                id="resource-item-{{ resource.name }}"
+                                name="{{ resource.name }}"
+                                min="{{ resource.min }}"
+                                max="{{ resource.max }}"
+                                step="{{ resource.step }}"
+                                oninput="this.nextElementSibling.value = this.value"
+                                {% if resource.default %}
+                                    value="{{ resource.default }}"
+                                {% endif %}
+                            />
+                            <output>
+                                {% if resource.default %}
+                                {{ resource.default }}
+                                {% endif %}
+                            </output>
+                        </div>
+                    </label>
+                    {% else %}
+                    <label for="resource-item-{{ resource.name }}" class="form-control input-group">
+                        <div class='col-md-12'>
+                            {{ resource.display_name }} ({{ unit }}):
+                            <input
+                                class="form-control"
+                                type="number"
+                                id="resource-item-{{ resource.name }}"
+                                name="{{ resource.name }}"
+                                min="{{ resource.min }}"
+                                {% if resource.default %}
+                                    value="{ resource.default }}"
+                                {% endif %}
+                            />
+                        </div>
+                    </label>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% elif resource_policy == "fixed" %}
+            <h2>Resources Selection</h2>
+            {% for resource in resources %}
+                <input
+                    class="form-control"
+                    type="hidden"
+                    id="resource-item-{{ resource.name }}"
+                    name="{{ resource.name }}"
+                    value="{ resource.default }}"
+                />
+            {% endfor %}
+        {% endif %}
         """,
         config=True,
         help="""
@@ -250,18 +274,22 @@ class DossierKubeSpawner(KubeSpawner):
         print("Rendering form for tenant {}".format(self.tenant['metadata']['name']))
         annotations = self.tenant['metadata']['annotations']
         image_policy = annotations.get('dossier.unito.it/image-policy', self.default_image_policy)
+        resource_policy = annotations.get('dossier.unito.it/resource-policy', self.default_resource_policy)
         profile_options_form = ''
         if image_policy == "profiles":
             if callable(self.profile_list):
                 profile_options_form = self._render_options_form_dynamically(self.profile_list)
             else:
                 profile_options_form = self._render_options_form(self.profile_list)
+        if image_policy == 'fixed' and resource_policy == 'fixed' and not profile_options_form:
+            return ''
         dossier_form_template = Environment(loader=BaseLoader).from_string(
             self.dossier_options_form_template
         )
         resources = {
             'cpu': {'name': 'cpu', 'display_name': 'CPU', 'unit': 'element', 'step': 10},
-            'memory': {'name': 'memory', 'display_name': 'Memory', 'unit': 'byte'}
+            'memory': {'name': 'memory', 'display_name': 'Memory', 'unit': 'byte'},
+            'nvidia.com/gpu': {'name': 'gpu', 'display_name': 'GPU', 'unit': 'element', 'step': 1}
         }
         if 'limitRanges' in self.tenant['spec']:
             for item in self.tenant['spec']['limitRanges']['items']:
@@ -286,6 +314,7 @@ class DossierKubeSpawner(KubeSpawner):
             image_policy=image_policy,
             profile_options_form=profile_options_form,
             default_image=self.image,
+            resource_policy=resource_policy,
             resources=list(resources.values()))
 
     def render_tenants_form(self, tenants):
@@ -306,7 +335,8 @@ class DossierKubeSpawner(KubeSpawner):
 
     async def options_from_form(self, formdata):
         return {
-            'image': formdata.get('image', [None])[0],
+            'image': formdata.get('image', [self.image])[0],
             'cpu': formdata.get('cpu')[0],
-            'mem': formdata.get('mem')[0]
+            'mem': formdata.get('memory')[0],
+            'gpu': formdata.get('gpu')[0]
         }

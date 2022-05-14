@@ -40,6 +40,7 @@ class DossierSpawnHandler(SpawnHandler):
                         "User {} has no tenants assigned.", user.name, self)
             elif len(tenants) == 1:
                 spawner.tenant = list(tenants.values())[0]
+                await super().get(for_user=for_user, server_name=server_name)
             else:
                 url = url_path_join(self.hub.base_url, 'tenant', user.escaped_name)
                 html = await self.render_template(

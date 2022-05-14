@@ -1,12 +1,16 @@
 import os
 
 from jupyterhub.app import JupyterHub
-from traitlets import Unicode
+from traitlets import default
 
 from dossier import handlers
 
 
 class Dossier(JupyterHub):
+
+    @default('logo_file')
+    def _logo_file_default(self):
+        return os.path.join(self.data_files_path, 'static', 'images', 'dossier.png')
 
     def init_handlers(self):
         super().init_handlers()
