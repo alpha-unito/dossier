@@ -283,7 +283,7 @@ class DossierKubeSpawner(KubeSpawner):
                 profile_options_form = self._render_options_form(self.profile_list)
         if image_policy == 'fixed' and resource_policy == 'fixed' and not profile_options_form:
             return ''
-        dossier_form_template = Environment(loader=BaseLoader).from_string(
+        dossier_form_template = Environment(loader=BaseLoader()).from_string(
             self.dossier_options_form_template
         )
         resources = {
@@ -318,7 +318,7 @@ class DossierKubeSpawner(KubeSpawner):
             resources=list(resources.values()))
 
     def render_tenants_form(self, tenants):
-        dossier_form_template = Environment(loader=BaseLoader).from_string(
+        dossier_form_template = Environment(loader=BaseLoader()).from_string(
             self.dossier_tenants_form_template)
         tenant_form_objs = []
         for name in tenants:

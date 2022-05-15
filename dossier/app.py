@@ -1,14 +1,12 @@
 import os
 
 from jupyterhub.app import JupyterHub
-from traitlets import default
 
 from dossier import handlers
 
 
 class Dossier(JupyterHub):
 
-    @default('logo_file')
     def _logo_file_default(self):
         return os.path.join(self.data_files_path, 'static', 'images', 'dossier.png')
 
@@ -23,6 +21,12 @@ class Dossier(JupyterHub):
         h = list(dossier_handlers.values())
         h.extend(self.handlers)
         self.handlers = h
+
+    def init_tornado_settings(self):
+        dossier_template_paths = os.path.join(self.data_files_path, 'dossier', 'templates')
+        if dossier_template_paths not in self.template_paths:
+            self.template_paths.append(dossier_template_paths)
+        super().init_tornado_settings()
 
 
 main = Dossier.launch_instance

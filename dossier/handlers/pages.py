@@ -44,7 +44,7 @@ class DossierSpawnHandler(SpawnHandler):
             else:
                 url = url_path_join(self.hub.base_url, 'tenant', user.escaped_name)
                 html = await self.render_template(
-                    'dossier/tenants.html',
+                    'tenants.html',
                     no_spawner_check=True,
                     url=url,
                     dossier_spawner_tenants_form=spawner.render_tenants_form(tenants))
