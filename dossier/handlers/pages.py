@@ -1,7 +1,10 @@
+import os
+
 from jupyterhub.handlers import BaseHandler
 from jupyterhub.handlers.pages import SpawnHandler
 from jupyterhub.utils import url_path_join, maybe_future
 from tornado import web
+from tornado.web import StaticFileHandler
 
 
 def _check_impersonate(handler, user, for_user):

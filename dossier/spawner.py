@@ -1,5 +1,7 @@
 import string
 import time
+import uuid
+from typing import MutableMapping
 
 import escapism
 from jinja2 import BaseLoader, Environment
@@ -23,9 +25,9 @@ def _get_resource_amount_in_elements(value):
     if value:
         v = str(value)
         if v.endswith('m'):
-            return int(v[:-1])
+            return float(int(v[:-1]) / 1000)
         else:
-            return int(v) * 1000
+            return int(v)
     else:
         return 0
 
@@ -184,17 +186,6 @@ class DossierKubeSpawner(KubeSpawner):
                     {% endif %}
                 </div>
             {% endfor %}
-        {% elif resource_policy == "fixed" %}
-            <h2>Resources Selection</h2>
-            {% for resource in resources %}
-                <input
-                    class="form-control"
-                    type="hidden"
-                    id="resource-item-{{ resource.name }}"
-                    name="{{ resource.name }}"
-                    value="{ resource.default }}"
-                />
-            {% endfor %}
         {% endif %}
         """,
         config=True,
@@ -211,23 +202,28 @@ class DossierKubeSpawner(KubeSpawner):
     dossier_tenants_form_template = Unicode(
         """
         <style>
-        #dossier-tenants-list label p {
-            font-weight: normal;
-        }
+            #dossier-tenants-list label span {
+                font-weight: normal;
+            }
+            .vcenter {
+                display: inline-block;
+                float: none;
+                vertical-align: middle;
+            }
         </style>
         <div class='form-group' id='dossier-tenants-list'>
         {% for tenant in tenants %}
-        <label for='tenant-item-{{ tenant.name }}' class='form-control input-group'>
-            <div class='col-md-1'>
-                <input type='radio' name='tenant' id='tenant-item-{{ tenant.slug }}' value='{{ tenant.slug }}' />
-            </div>
-            <div class='col-md-11'>
-                <strong>{{ tenant.name }}</strong>
-                {% if tenant.description %}
-                <p>{{ tenant.description }}</p>
-                {% endif %}
-            </div>
-        </label>
+            <label for='tenant-item-{{ tenant.name }}' class='form-control input-group'>
+                <div class='col-md-1 vcenter'>
+                    <input type='radio' name='tenant' id='tenant-item-{{ tenant.slug }}' value='{{ tenant.slug }}' />
+                </div>
+                <div class='col-md-10 vcenter'>
+                    <strong>{{ tenant.name }}</strong>
+                    {% if tenant.description %}
+                        <span> - {{ tenant.description }}</span>
+                    {% endif %}
+                </div>
+            </label>
         {% endfor %}
         </div>
         """,
@@ -251,6 +247,22 @@ class DossierKubeSpawner(KubeSpawner):
             await super()._ensure_namespace()
             time.sleep(5)
 
+    async def _load_profile(self, slug):
+        if isinstance(slug, MutableMapping):
+            random_name = str(uuid.uuid4())
+            slug['display_name'] = "Dynamically generated profile"
+            slug['slug'] = random_name
+            self._profile_list.append(slug)
+            try:
+                await super()._load_profile(random_name)
+            finally:
+                for profile in list(self._profile_list):
+                    if profile['slug'] == random_name:
+                        self._profile_list.remove(profile)
+                        break
+        else:
+            await super()._load_profile(slug)
+
     def get_tenants(self):
         return self.custom_api.list_cluster_custom_object(
             group="capsule.clastix.io",
@@ -271,7 +283,6 @@ class DossierKubeSpawner(KubeSpawner):
                 raise error
 
     async def get_options_form(self):
-        print("Rendering form for tenant {}".format(self.tenant['metadata']['name']))
         annotations = self.tenant['metadata']['annotations']
         image_policy = annotations.get('dossier.unito.it/image-policy', self.default_image_policy)
         resource_policy = annotations.get('dossier.unito.it/resource-policy', self.default_resource_policy)
@@ -291,9 +302,9 @@ class DossierKubeSpawner(KubeSpawner):
             'memory': {'name': 'memory', 'display_name': 'Memory', 'unit': 'byte'},
             'nvidia.com/gpu': {'name': 'gpu', 'display_name': 'GPU', 'unit': 'element', 'step': 1}
         }
-        if 'limitRanges' in self.tenant['spec']:
-            for item in self.tenant['spec']['limitRanges']['items']:
-                for limit in item['limits']:
+        for item in self.tenant['spec'].get('limitRanges', {}).get('items', []):
+            for limit in item.get('limits', []):
+                if limit.get('type') == 'Container':
                     for r in resources:
                         if r in limit.get('default', {}):
                             resources[r]['default'] = _get_resource_amount(
@@ -307,6 +318,7 @@ class DossierKubeSpawner(KubeSpawner):
                             resources[r]['max'] = _get_resource_amount(
                                 limit['max'][r],
                                 resources[r]['unit'])
+                    break
         else:
             for r in resources:
                 resources[r]['min'] = 0
@@ -334,9 +346,43 @@ class DossierKubeSpawner(KubeSpawner):
         return {'tenant': formdata.get('tenant')[0]}
 
     async def options_from_form(self, formdata):
-        return {
-            'image': formdata.get('image', [self.image])[0],
-            'cpu': formdata.get('cpu')[0],
-            'mem': formdata.get('memory')[0],
-            'gpu': formdata.get('gpu')[0]
-        }
+        annotations = self.tenant['metadata']['annotations']
+        image_policy = annotations.get('dossier.unito.it/image-policy', self.default_image_policy)
+        if image_policy == 'profiles':
+            profile = formdata.get('profile', [None])[0]
+        elif image_policy == 'manual':
+            profile = formdata.get('profile', {
+                'kubespawner_override': {
+                    'image': formdata.get('image')[0] or self.image
+                }
+            })
+        else:
+            profile = {
+                'kubespawner_override': {
+                    'image': self.image
+                }
+            }
+        resource_policy = annotations.get('dossier.unito.it/resource-policy', self.default_resource_policy)
+        if resource_policy == 'profiles':
+            pass  # TODO: implement
+        elif resource_policy == 'manual':
+            profile['kubespawner_override'].update({
+                'cpu_limit': int(formdata.get('cpu')[0]) or self.cpu_limit,
+                'cpu_guarantee': int(formdata.get('cpu')[0]) or self.cpu_guarantee,
+                'mem_limit': int(formdata.get('mem')[0]) or self.mem_limit,
+                'mem_guarantee': int(formdata.get('mem')[0]) or self.mem_guarantee})
+        else:
+            for item in self.tenant['spec'].get('limitRanges', {}).get('items', []):
+                for limit in item.get('limits', []):
+                    if limit.get('type') == 'Container':
+                        profile['kubespawner_override'].update({
+                            'cpu_limit': _get_resource_amount(
+                                limit.get('default', {}).get('cpu', self.cpu_limit), 'element'),
+                            'cpu_guarantee': _get_resource_amount(
+                                limit.get('defaultRequest', {}).get('cpu', self.cpu_limit), 'element'),
+                            'mem_limit': _get_resource_amount(
+                                limit.get('default', {}).get('memory', self.mem_limit), 'byte'),
+                            'mem_guarantee': _get_resource_amount(
+                                limit.get('defaultRequest', {}).get('memory', self.mem_guarantee), 'byte')})
+                        break
+        return {'profile': profile}
