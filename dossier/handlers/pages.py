@@ -105,7 +105,7 @@ class DossierSpawnerHandler(BaseHandler):
                 'server': spawner._server,
                 'config': spawner.config}
             kwargs = {**default_args, **s['spec']['parameters']}
-            user.spawners['__DOSSIER_ORIGINAL__'] = spawner
+            user.original_spawner =  spawner
             user.spawners[server_name] = class_(**kwargs)
             next_url = self.get_next_url(user, default=url_path_join(self.hub.base_url, 'spawn'))
             self.redirect(next_url)
