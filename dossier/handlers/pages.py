@@ -28,18 +28,6 @@ class DossierSpawnHandler(SpawnHandler):
         auth_state = await user.get_auth_state()
         spawner = user.spawners[server_name]
         if isinstance(spawner, DossierKubeSpawner):
-            if not hasattr(spawner, 'confirmed'):
-                spawners = {s['metadata']['name']: s for s in spawner.get_spawners()}
-                if len(spawners) == 0:
-                    spawner.confirmed = True
-                else:
-                    url = url_path_join(self.hub.base_url, 'spawner', user.escaped_name)
-                    html = await self.render_template(
-                        'spawners.html',
-                        no_spawner_check=True,
-                        url=url,
-                        dossier_spawners_form=spawner.render_spawners_form(spawners))
-                    return self.finish(html)
             if spawner.tenant is None:
                 tenants = {t['metadata']['name']: t
                            for t in spawner.get_tenants() if t['metadata']['name'] in auth_state['tenants']}
@@ -57,7 +45,6 @@ class DossierSpawnHandler(SpawnHandler):
                             "User {} has no tenants assigned.", user.name, self)
                 elif len(tenants) == 1:
                     spawner.tenant = list(tenants.values())[0]
-                    await super().get(for_user=for_user, server_name=server_name)
                 else:
                     url = url_path_join(self.hub.base_url, 'tenant', user.escaped_name)
                     html = await self.render_template(
@@ -65,6 +52,20 @@ class DossierSpawnHandler(SpawnHandler):
                         no_spawner_check=True,
                         url=url,
                         dossier_tenants_form=spawner.render_tenants_form(tenants))
+                    return self.finish(html)
+            elif not hasattr(spawner, 'confirmed'):
+                spawners = {s['metadata']['name']: s for s in spawner.get_spawners()
+                            if spawner.tenant['metadata']['name'] in s['spec'].get('tenants', [])}
+                if len(spawners) == 0:
+                    spawner.confirmed = True
+                    await super().get(for_user=for_user, server_name=server_name)
+                else:
+                    url = url_path_join(self.hub.base_url, 'spawner', user.escaped_name)
+                    html = await self.render_template(
+                        'spawners.html',
+                        no_spawner_check=True,
+                        url=url,
+                        dossier_spawners_form=spawner.render_spawners_form(spawners))
                     return self.finish(html)
             else:
                 await super().get(for_user=for_user, server_name=server_name)
@@ -104,6 +105,7 @@ class DossierSpawnerHandler(BaseHandler):
                 'server': spawner._server,
                 'config': spawner.config}
             kwargs = {**default_args, **s['spec']['parameters']}
+            user.spawners['__DOSSIER_ORIGINAL__'] = spawner
             user.spawners[server_name] = class_(**kwargs)
             next_url = self.get_next_url(user, default=url_path_join(self.hub.base_url, 'spawn'))
             self.redirect(next_url)

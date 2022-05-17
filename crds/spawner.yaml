@@ -75,3 +75,8 @@ spec:
                       description: Timeout (in seconds) before giving up on starting of single-user server
                       type: integer
                       default: 60
+                tenants:
+                  description: The set of tenants enabled to spawn on this resource
+                  type: array
+                  items:
+                    type: string

@@ -7,9 +7,16 @@ class DossierLogoutHandler(LogoutHandler):
         user = self.current_user
         for spawner in user.spawners.values():
             if self.shutdown_on_logout:
-                spawner.tenant = None
+                if hasattr(spawner, 'tenant'):
+                    spawner.tenant = None
+                if hasattr(spawner, 'confirmed'):
+                    delattr(spawner, 'confirmed')
             elif not (spawner.ready or spawner.active or spawner.pending):
-                spawner.tenant = None
+                if hasattr(spawner, 'tenant'):
+                    spawner.tenant = None
+                if hasattr(spawner, 'confirmed'):
+                    delattr(spawner, 'confirmed')
+        user.spawners[''] = user.spawners['__DOSSIER_ORIGINAL__']
 
     async def get(self):
         self.clear_tenants()
