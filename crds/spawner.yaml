@@ -1,0 +1,77 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: spawners.dossier.unito.it
+spec:
+  group: dossier.unito.it
+  names:
+    plural: spawners
+    singular: spawner
+    kind: Spawner
+    listKind: SpawnerList
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          description: JupyterHub Spawner to remote locations
+          type: object
+          properties:
+            apiVersion:
+              description: >-
+                APIVersion defines the versioned schema of this representation
+                of an object. Servers should convert recognized schemas to the
+                latest internal value, and may reject unrecognized values. More
+                info:
+                https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: >-
+                Kind is a string value representing the REST resource this
+                object represents. Servers may infer this from the endpoint the
+                client submits requests to. Cannot be updated. In CamelCase.
+                More info:
+                https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: SpawnerSpec defines the state of a Spawner
+              type: object
+              required:
+                - class
+              properties:
+                class:
+                  description: >-
+                    A fully qualified class name of a Jupyter Notebooks spawner. The class must extend the
+                    jupyterhub.spawner.Spawner class.
+                    More info:
+                    https://github.com/jupyterhub/jupyterhub/blob/main/docs/source/reference/spawners.md
+                  type: string
+                parameters:
+                  description: >-
+                    Configurable parameters of the selected spawner class. Parameters can be different for each
+                    spawner class
+                  type: object
+                  properties:
+                    hub_api_url:
+                      description: If set, Spawner will configure the containers to use the specified URL to connect the hub api.
+                      type: string
+                    remote_hosts:
+                      description: Possible remote hosts from which to choose remote_host
+                      type: array
+                      items:
+                        type: string
+                    remote_port:
+                      description: SSH remote port number
+                      type: string
+                      default: '22'
+                    ssh_keyfile:
+                      description: Key file used to authenticate hub with remote host
+                      type: string
+                    start_timeout:
+                      description: Timeout (in seconds) before giving up on starting of single-user server
+                      type: integer
+                      default: 60

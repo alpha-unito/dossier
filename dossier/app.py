@@ -47,7 +47,6 @@ class Dossier(JupyterHub):
         h = list(dossier_handlers.values())
         h.extend(self.handlers)
         self.handlers = h
-        print(self.handlers)
 
     def init_tornado_settings(self):
         dossier_template_paths = os.path.join(self.data_files_path, 'dossier', 'templates')

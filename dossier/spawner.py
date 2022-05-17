@@ -199,6 +199,49 @@ class DossierKubeSpawner(KubeSpawner):
             """,
     )
 
+    dossier_spawners_form_template = Unicode(
+        """
+        <style>
+            #dossier-spawners-list label span {
+                font-weight: normal;
+            }
+            .vcenter {
+                display: inline-block;
+                float: none;
+                vertical-align: middle;
+            }
+        </style>
+        <div class='form-group' id='dossier-spawners-list'>
+        {% for spawner in spawners %}
+            <label for='spawner-item-{{ spawner.name }}' class='form-control input-group'>
+                <div class='col-md-1 vcenter'>
+                    <input
+                        type='radio'
+                        name='spawner'
+                        id='spawner-item-{{ spawner.slug }}'
+                        value='{{ spawner.slug }}' />
+                </div>
+                <div class='col-md-10 vcenter'>
+                    <strong>{{ spawner.name }}</strong>
+                    {% if spawner.description %}
+                        <span> - {{ spawner.description }}</span>
+                    {% endif %}
+                </div>
+            </label>
+        {% endfor %}
+        </div>
+        """,
+        config=True,
+        help="""
+            Jinja2 template for constructing the spawners form shown to user.
+
+            The contents of the `spawners` variable are passed in to the template.
+            This should be used to construct the contents of a HTML form. When
+            posted, this form is expected to have an item with name `spawner` and
+            the value of the index of the tenant in the `spawners` variable.
+        """
+    )
+
     dossier_tenants_form_template = Unicode(
         """
         <style>
@@ -215,7 +258,11 @@ class DossierKubeSpawner(KubeSpawner):
         {% for tenant in tenants %}
             <label for='tenant-item-{{ tenant.name }}' class='form-control input-group'>
                 <div class='col-md-1 vcenter'>
-                    <input type='radio' name='tenant' id='tenant-item-{{ tenant.slug }}' value='{{ tenant.slug }}' />
+                    <input
+                        type='radio'
+                        name='tenant'
+                        id='tenant-item-{{ tenant.slug }}'
+                        value='{{ tenant.slug }}' />
                 </div>
                 <div class='col-md-10 vcenter'>
                     <strong>{{ tenant.name }}</strong>
@@ -229,7 +276,7 @@ class DossierKubeSpawner(KubeSpawner):
         """,
         config=True,
         help="""
-            Jinja2 template for constructing tenant fomrm shown to user.
+            Jinja2 template for constructing the tenants form shown to user.
 
             The contents of the `tenants` variable are passed in to the template.
             This should be used to construct the contents of a HTML form. When
@@ -263,11 +310,24 @@ class DossierKubeSpawner(KubeSpawner):
         else:
             await super()._load_profile(slug)
 
-    def get_tenants(self):
+    def get_spawner(self, name):
+        try:
+            return self.custom_api.get_cluster_custom_object(
+                group="dossier.unito.it",
+                version="v1alpha1",
+                plural="spawners",
+                name=name)
+        except ApiException as error:
+            if error.status == 404:
+                return None
+            else:
+                raise error
+
+    def get_spawners(self):
         return self.custom_api.list_cluster_custom_object(
-            group="capsule.clastix.io",
-            version="v1beta1",
-            plural="tenants")['items']
+            group="dossier.unito.it",
+            version="v1alpha1",
+            plural="spawners")['items']
 
     def get_tenant(self, name):
         try:
@@ -281,6 +341,12 @@ class DossierKubeSpawner(KubeSpawner):
                 return None
             else:
                 raise error
+
+    def get_tenants(self):
+        return self.custom_api.list_cluster_custom_object(
+            group="capsule.clastix.io",
+            version="v1beta1",
+            plural="tenants")['items']
 
     async def get_options_form(self):
         annotations = self.tenant['metadata']['annotations']
@@ -329,6 +395,22 @@ class DossierKubeSpawner(KubeSpawner):
             resource_policy=resource_policy,
             resources=list(resources.values()))
 
+    def render_spawners_form(self, spawners):
+        dossier_form_template = Environment(loader=BaseLoader()).from_string(
+            self.dossier_spawners_form_template)
+        spawner_form_objs = [{
+            'name': 'Dossier Spawner',
+            'slug': 'default',
+            'description': 'Spawns a Notebook on your Kubernetes Tenant'}]
+        for name in spawners:
+            annotations = spawners[name]['metadata']['annotations']
+            spawner_form_obj = {'name': annotations.get('dossier.unito.it/display-name', name)}
+            if 'dossier.unito.it/description' in annotations:
+                spawner_form_obj['description'] = annotations['dossier.unito.it/description']
+            spawner_form_obj['slug'] = slugify(name)
+            spawner_form_objs.append(spawner_form_obj)
+        return dossier_form_template.render(spawners=spawner_form_objs)
+
     def render_tenants_form(self, tenants):
         dossier_form_template = Environment(loader=BaseLoader()).from_string(
             self.dossier_tenants_form_template)
@@ -341,6 +423,9 @@ class DossierKubeSpawner(KubeSpawner):
             tenant_form_obj['slug'] = slugify(name)
             tenant_form_objs.append(tenant_form_obj)
         return dossier_form_template.render(tenants=tenant_form_objs)
+
+    async def spawner_from_form(self, formdata):
+        return {'spawner': formdata.get('spawner')[0]}
 
     async def tenant_from_form(self, formdata):
         return {'tenant': formdata.get('tenant')[0]}

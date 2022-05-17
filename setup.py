@@ -41,6 +41,7 @@ setup(
         "jupyterhub-kubespawner",
         "oauthenticator",
         "slugify",
+        "sshspawner",
         "traitlets",
         "tornado"
     ],
