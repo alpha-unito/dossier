@@ -5,7 +5,7 @@ from jupyterhub.handlers.pages import SpawnHandler
 from jupyterhub.utils import maybe_future, url_path_join
 from tornado import web
 
-from dossier.spawner import DossierKubeSpawner
+from dossier.spawners.kubespawner import DossierKubeSpawner
 
 
 def _check_impersonate(handler, user, for_user):
@@ -53,12 +53,12 @@ class DossierSpawnHandler(SpawnHandler):
                         url=url,
                         dossier_tenants_form=spawner.render_tenants_form(tenants))
                     return self.finish(html)
-            elif not hasattr(spawner, 'confirmed'):
+            if not hasattr(spawner, 'confirmed'):
                 spawners = {s['metadata']['name']: s for s in spawner.get_spawners()
                             if spawner.tenant['metadata']['name'] in s['spec'].get('tenants', [])}
                 if len(spawners) == 0:
                     spawner.confirmed = True
-                    await super().get(for_user=for_user, server_name=server_name)
+                    return await super().get(for_user=for_user, server_name=server_name)
                 else:
                     url = url_path_join(self.hub.base_url, 'spawner', user.escaped_name)
                     html = await self.render_template(
@@ -67,10 +67,7 @@ class DossierSpawnHandler(SpawnHandler):
                         url=url,
                         dossier_spawners_form=spawner.render_spawners_form(spawners))
                     return self.finish(html)
-            else:
-                await super().get(for_user=for_user, server_name=server_name)
-        else:
-            await super().get(for_user=for_user, server_name=server_name)
+        return await super().get(for_user=for_user, server_name=server_name)
 
 
 class DossierSpawnerHandler(BaseHandler):
@@ -102,10 +99,11 @@ class DossierSpawnerHandler(BaseHandler):
                 'authenticator': spawner.authenticator,
                 'oauth_client_id': spawner.oauth_client_id,
                 'orm_spawner': spawner.orm_spawner,
+                'proxy_spec': spawner.proxy_spec,
                 'server': spawner._server,
                 'config': spawner.config}
             kwargs = {**default_args, **s['spec']['parameters']}
-            user.original_spawner =  spawner
+            user.original_spawner = spawner
             user.spawners[server_name] = class_(**kwargs)
             next_url = self.get_next_url(user, default=url_path_join(self.hub.base_url, 'spawn'))
             self.redirect(next_url)

@@ -20,7 +20,8 @@ setup(
     packages=[
         "dossier",
         "dossier.auth",
-        "dossier.handlers"
+        "dossier.handlers",
+        "dossier.spawners"
     ],
     data_files=data_files,
     entry_points={
@@ -36,12 +37,12 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=[
+        "asyncssh",
         "jinja2",
         "jupyterhub",
         "jupyterhub-kubespawner",
         "oauthenticator",
         "slugify",
-        "sshspawner",
         "traitlets",
         "tornado"
     ],

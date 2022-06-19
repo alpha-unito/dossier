@@ -52,29 +52,16 @@ spec:
                   type: string
                 parameters:
                   description: >-
-                    Configurable parameters of the selected spawner class. Parameters can be different for each
-                    spawner class
+                    Configurable parameters of the selected spawner class that must be populated by each user.
+                    Parameters can be different for each spawner class
                   type: object
-                  properties:
-                    hub_api_url:
-                      description: If set, Spawner will configure the containers to use the specified URL to connect the hub api.
-                      type: string
-                    remote_hosts:
-                      description: Possible remote hosts from which to choose remote_host
-                      type: array
-                      items:
-                        type: string
-                    remote_port:
-                      description: SSH remote port number
-                      type: string
-                      default: '22'
-                    ssh_keyfile:
-                      description: Key file used to authenticate hub with remote host
-                      type: string
-                    start_timeout:
-                      description: Timeout (in seconds) before giving up on starting of single-user server
-                      type: integer
-                      default: 60
+                  x-kubernetes-preserve-unknown-fields: true
+                properties:
+                  description: >-
+                    Spawner parameters configured directly by the system administrator. Properties can be different
+                    for each spawner class.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
                 tenants:
                   description: The set of tenants enabled to spawn on this resource
                   type: array

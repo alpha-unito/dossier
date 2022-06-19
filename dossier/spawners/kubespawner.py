@@ -9,6 +9,7 @@ from kubernetes.client import ApiException
 from kubespawner import KubeSpawner
 from kubespawner.clients import shared_client
 from slugify import slugify
+from tornado import gen
 from traitlets import Unicode
 
 
@@ -105,6 +106,7 @@ class DossierKubeSpawner(KubeSpawner):
     default_tenant_name = Unicode(
         None,
         config=True,
+        allow_none=True,
         help="""
         Tenant to be uses when a user has no assigned tenants.
         
@@ -294,22 +296,6 @@ class DossierKubeSpawner(KubeSpawner):
             await super()._ensure_namespace()
             time.sleep(5)
 
-    async def _load_profile(self, slug):
-        if isinstance(slug, MutableMapping):
-            random_name = str(uuid.uuid4())
-            slug['display_name'] = "Dynamically generated profile"
-            slug['slug'] = random_name
-            self._profile_list.append(slug)
-            try:
-                await super()._load_profile(random_name)
-            finally:
-                for profile in list(self._profile_list):
-                    if profile['slug'] == random_name:
-                        self._profile_list.remove(profile)
-                        break
-        else:
-            await super()._load_profile(slug)
-
     def get_spawner(self, name):
         try:
             return self.custom_api.get_cluster_custom_object(
@@ -395,6 +381,43 @@ class DossierKubeSpawner(KubeSpawner):
             resource_policy=resource_policy,
             resources=list(resources.values()))
 
+    async def load_user_options(self):
+        if self._profile_list is None:
+            if callable(self.profile_list):
+                profile_list = await gen.maybe_future(self.profile_list(self))
+            else:
+                profile_list = self.profile_list
+
+            self._profile_list = self._init_profile_list(profile_list)
+
+        selected_profile = self.user_options.get('profile', None)
+        if self._profile_list:
+            await self._load_profile(selected_profile)
+        elif selected_profile:
+            if isinstance(selected_profile, MutableMapping):
+                random_name = str(uuid.uuid4())
+                selected_profile['display_name'] = "Dynamically generated profile"
+                selected_profile['slug'] = random_name
+                self._profile_list.append(selected_profile)
+                try:
+                    await self._load_profile(random_name)
+                finally:
+                    for profile in list(self._profile_list):
+                        if profile['slug'] == random_name:
+                            self._profile_list.remove(profile)
+                            break
+            else:
+                self.log.warning("Profile %r requested, but profiles are not enabled", selected_profile)
+
+        # help debugging by logging any option fields that are not recognized
+        option_keys = set(self.user_options)
+        unrecognized_keys = option_keys.difference(self._user_option_keys)
+        if unrecognized_keys:
+            self.log.warning(
+                "Ignoring unrecognized KubeSpawner user_options: %s",
+                ", ".join(map(str, sorted(unrecognized_keys))),
+            )
+
     def render_spawners_form(self, spawners):
         dossier_form_template = Environment(loader=BaseLoader()).from_string(
             self.dossier_spawners_form_template)
@@ -470,4 +493,5 @@ class DossierKubeSpawner(KubeSpawner):
                             'mem_guarantee': _get_resource_amount(
                                 limit.get('defaultRequest', {}).get('memory', self.mem_guarantee), 'byte')})
                         break
+        self.log.debug("Launching profile " + str(profile))
         return {'profile': profile}

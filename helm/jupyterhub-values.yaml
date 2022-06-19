@@ -17,10 +17,10 @@ hub:
       client_id: jupyter
       client_secret: ******
       enable_auth_state: true
-      oauth_callback_url: https://jupyter.opendeephealth.di.unito.it/hub/oauth_callback
-      authorize_url: https://identity.opendeephealth.di.unito.it/auth/realms/opendeephealth/protocol/openid-connect/auth
-      token_url: https://identity.opendeephealth.di.unito.it/auth/realms/opendeephealth/protocol/openid-connect/token
-      userdata_url: https://identity.opendeephealth.di.unito.it/auth/realms/opendeephealth/protocol/openid-connect/userinfo
+      oauth_callback_url: https://jupyter.test-odh.di.unito.it/hub/oauth_callback
+      authorize_url: https://identity.test-odh.di.unito.it/auth/realms/opendeephealth/protocol/openid-connect/auth
+      token_url: https://identity.test-odh.di.unito.it/auth/realms/opendeephealth/protocol/openid-connect/token
+      userdata_url: https://identity.test-odh.di.unito.it/auth/realms/opendeephealth/protocol/openid-connect/userinfo
       login_service: keycloak
       username_key: email
     JupyterHub:
@@ -33,7 +33,7 @@ hub:
   extraConfig:
     authenticatorConfig: c.JupyterHub.authenticator_class = 'dossier.auth.oauth.DossierOAuthenticator'
     spawnerConfig: |
-      from dossier.spawner import DossierKubeSpawner
+      from dossier.spawners.kubespawner import DossierKubeSpawner
       c.JupyterHub.spawner_class = DossierKubeSpawner
       c.JupyterHub.hub_connect_url = f'http://{get_name("hub")}.{os.environ.get("POD_NAMESPACE", "default")}:{get_name_env("hub", "_SERVICE_PORT")}'
       c.KubeSpawner.enable_user_namespaces = True
