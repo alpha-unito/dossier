@@ -1,0 +1,34 @@
+cainjector:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ''
+  replicaCount: 3
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ''
+prometheus:
+  enabled: false
+  servicemonitor:
+    enabled: true
+replicaCount: 3
+startupapicheck:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ''
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+webhook:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ''
+  replicaCount: 3
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule

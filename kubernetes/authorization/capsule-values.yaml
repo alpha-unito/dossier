@@ -1,0 +1,21 @@
+certManager:
+  generateCertificates: true
+manager:
+  options:
+    forceTenantPrefix: true
+    capsuleUserGroups:
+      - "dossier.unito.it"
+      - "system:serviceaccounts:jhub"
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ''
+replicaCount: 3
+serviceMonitor:
+  enabled: false
+  namespace: monitoring
+tls:
+  create: false
+  enableController: false
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule

@@ -1,0 +1,86 @@
+auth:
+  adminUser: admin
+  existingSecret: keycloak
+  managementUser: manager
+ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-cluster-issuer
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+    kubernetes.io/ingress.class: contour
+  certManager: true
+  enabled: true
+  hostname: ******
+  tls: true
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+networkPolicy:
+  additionalRules:
+    ingress:
+      - podSelector:
+          matchLabels:
+            app: envoy
+        namespaceSelector:
+          matchLabels:
+            name: projectcontour
+    metrics:
+      - podSelector:
+          matchLabels:
+            app: prometheus
+        namespaceSelector:
+          matchLabels:
+            name: monitoring
+  allowExternal: false
+  enabled: false
+nodeSelector:
+  node-role.kubernetes.io/control-plane: ''
+podLabels:
+  keycloak-postgresql-client: "true"
+postgresql:
+  architecture: replication
+  auth:
+    existingSecret: keycloak-postgresql
+    username: keycloak
+    database: keycloak
+  global:
+    storageClass: cdk-cinder
+  metrics:
+    enabled: false
+    serviceMonitor:
+      enabled: true
+      namespace: monitoring
+  networkPolicy:
+    enabled: true
+    allowExternal: false
+  primary:
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ''
+    persistence:
+      size: 10Gi
+      storageClass: cdk-cinder
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+  readReplicas:
+    nodeSelector:
+      node-role.kubernetes.io/control-plane: ''
+    persistence:
+      size: 10Gi
+      storageClass: cdk-cinder
+    replicaCount: 2
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+production: true
+proxy: edge
+replicaCount: 3
+service:
+  type: ClusterIP
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule

@@ -1,0 +1,36 @@
+architecture: replication
+auth:
+  existingSecret: jhub-postgresql
+  username: jhub
+  database: jhub
+global:
+  storageClass: cdk-cinder
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+networkPolicy:
+  enabled: true
+  allowExternal: false
+primary:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ''
+  persistence:
+    size: 20Gi
+    storageClass: cdk-cinder
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+readReplicas:
+  nodeSelector:
+    node-role.kubernetes.io/control-plane: ''
+  persistence:
+    size: 20Gi
+    storageClass: cdk-cinder
+  replicaCount: 2
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
