@@ -1,4 +1,4 @@
-asyncssh==2.13.0
+asyncssh==2.13.1
 Jinja2==3.1.2
 jupyterhub==3.1.1
 jupyterhub-kubespawner==4.3.0
