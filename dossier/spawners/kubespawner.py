@@ -1,13 +1,12 @@
-import string
-import time
+import asyncio
 import uuid
 from typing import MutableMapping
 
-import escapism
 from jinja2 import BaseLoader, Environment
-from kubernetes.client import ApiException
+from kubernetes_asyncio.client import ApiException
 from kubespawner import KubeSpawner
 from kubespawner.clients import shared_client
+from kubespawner.objects import make_namespace
 from slugify import slugify
 from tornado import gen
 from traitlets import Unicode
@@ -288,13 +287,22 @@ class DossierKubeSpawner(KubeSpawner):
     )
 
     async def _ensure_namespace(self):
-        safe_chars = set(string.ascii_lowercase + string.digits)
-        username = escapism.escape(self.user.name, safe=safe_chars, escape_char='-').lower()
-        self.namespace = self.tenant['metadata']['name'] + '-' + username
-        namespaces = [n.metadata.name for n in self.api.list_namespace().items]
-        if self.namespace not in namespaces:
-            await super()._ensure_namespace()
-            time.sleep(5)
+        ns = make_namespace(
+            f"{self.tenant['metadata']['name']}-{self.namespace}",
+            labels=self._expand_all(self.user_namespace_labels),
+            annotations=self._expand_all(self.user_namespace_annotations),
+        )
+        api = self.api
+        try:
+            await asyncio.wait_for(
+                api.create_namespace(ns),
+                self.k8s_api_request_timeout,
+            )
+        except ApiException as e:
+            if e.status != 409:
+                # It's fine if it already exists
+                self.log.exception("Failed to create namespace %s", self.namespace)
+                raise
 
     def get_spawner(self, name):
         try:

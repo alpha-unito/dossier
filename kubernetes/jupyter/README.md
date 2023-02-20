@@ -60,55 +60,8 @@ kubectl label node <node-name> hub.jupyter.org/node-purpose=user
 kubectl label node <node-name> hub.jupyter.org/node-purpose=core
 ```
 
-Plus, it isnecessary to create a Tenant to integrate JupyterHub with the multi-tenacy mechanisms provided by Capsule:
-
-```yaml
-apiVersion: capsule.clastix.io/v1beta2
-kind: Tenant
-metadata:
-  name: jhub
-spec:
-  ingressOptions:
-    allowedHostnames:
-      allowed: []
-  namespaceOptions:
-    quota: 100
-  networkPolicies:
-    items:
-      - policyTypes:
-        - Ingress
-        - Egress
-        egress:
-        - to:
-          - ipBlock:
-              cidr: 0.0.0.0/0
-              except:
-                - 252.0.0.0/8
-                - 172.17.7.0/24
-                - 172.20.7.0/24
-        ingress:
-        - from:
-          - namespaceSelector:
-              matchLabels:
-                name: jhub
-          - podSelector:
-              matchLabels:
-                app: envoy
-            namespaceSelector:
-              matchLabels:
-                name: projectcontour
-          - podSelector: {}
-        podSelector: {}
-  owners:
-    - name: system:serviceaccount:jhub:hub
-      kind: ServiceAccount
-  serviceOptions:
-    allowedServices:
-      loadBalancer: false
-      nodePort: false
-    externalIPs:
-      allowed: []
-```
+Plus, it isnecessary to create a Tenant to integrate JupyterHub with the multi-tenacy mechanisms provided by Capsule
+(see the [authorization section](../authorization/README.md)).
 
 In order to support websockets with Contour, it is necessary to create a `HTTPProxy` resource:
 

@@ -47,18 +47,10 @@ apiVersion: capsule.clastix.io/v1beta1
 kind: Tenant
 metadata:
   name: <Tenant Name>
-  annotations:
-    capsule.clastix.io/enable-node-listing: "true"
 spec:
-  additionalRoleBindings:
-  - clusterRoleName: odh-policy
-    subjects:
-    - kind: Group
-      apiGroup: rbac.authorization.k8s.io
-      name: system:authenticated
   ingressOptions:
     allowedHostnames:
-      allowedRegex: <Allowed regex>
+      allowed: []
   namespaceOptions:
     quota: <Number of manageable namespaces>
   networkPolicies:
@@ -70,12 +62,12 @@ spec:
         - to:
           - ipBlock:
               cidr: 0.0.0.0/0
-              except:
-                - 252.0.0.0/8
-                - 172.17.7.0/24
-                - 172.20.7.0/24
+              except: <Blocked IPs>
         ingress:
         - from:
+          - namespaceSelector:
+              matchLabels:
+                name: jhub
           - namespaceSelector:
               matchLabels:
                 capsule.clastix.io/tenant: <Tenant Name>
@@ -90,8 +82,8 @@ spec:
   nodeSelector:
     pool: <Tenant Name>
   owners:
-    - name: <Owner Name>
-      kind: Group
+    - name: system:serviceaccount:jhub:hub
+      kind: ServiceAccount
   serviceOptions:
     allowedServices:
       loadBalancer: false

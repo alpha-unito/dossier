@@ -24,7 +24,7 @@ hub:
   db:
     password: ******
     type: postgres
-    url: "postgresql+psycopg2://jhub@jhub-postgresql:5432/jhub"
+    url: postgresql+psycopg2://jhub@jhub-postgresql-primary:5432/jhub
   extraConfig:
     authenticatorConfig: c.JupyterHub.authenticator_class = 'dossier.auth.oauth.DossierOAuthenticator'
     spawnerConfig: |

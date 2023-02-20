@@ -4,21 +4,12 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 
 import asyncssh
-import kubernetes.client
 from jupyterhub.spawner import Spawner
 from jupyterhub.utils import url_path_join
-from kubespawner.clients import shared_client
 from traitlets import Bool, Dict, Integer, Unicode
 
 
 class SSHSpawner(Spawner):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.core_api = shared_client('CoreV1Api')
-        self.namespace = os.environ.get("POD_NAMESPACE", "default")
-        self.service = None
-
     remote_host = Unicode(
         help="SSH remote host to spawn sessions on",
         config=True)
@@ -240,12 +231,6 @@ class SSHSpawner(Spawner):
     async def stop(self, now=False):
         """Stop single-user server process for the current user."""
         _ = await self.remote_signal(15)
-        if self.service:
-            try:
-                self.core_api.delete_namespaced_service(name=self.service, namespace=self.namespace)
-                self.core_api.delete_namespaced_endpoints(name=self.service, namespace=self.namespace)
-            finally:
-                self.service = None
         self.clear_state()
 
     def get_remote_user(self, username):
