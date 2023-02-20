@@ -28,12 +28,12 @@ class Dossier(JupyterHub):
 
     @default("favicon_file")
     def _favicon_file_default(self):
-        return os.path.join(self.data_files_path, "dossier", "static", "favicon.ico")
+        return os.path.join(self.data_files_path, "static", "dossier", "favicon.ico")
 
     @default("logo_file")
     def _logo_file_default(self):
         return os.path.join(
-            self.data_files_path, "dossier", "static", "images", "dossier.png"
+            self.data_files_path, "static", "dossier", "images", "dossier.png"
         )
 
     def init_handlers(self):
@@ -59,7 +59,7 @@ class Dossier(JupyterHub):
 
     def init_tornado_settings(self):
         dossier_template_paths = os.path.join(
-            self.data_files_path, "dossier", "templates"
+            self.data_files_path, "templates", "dossier"
         )
         if dossier_template_paths not in self.template_paths:
             self.template_paths.append(dossier_template_paths)

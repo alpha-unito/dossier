@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "bootstrap": "^3.4.1",
+    "font-awesome": "^4.7.0"
+  },
+  "devDependencies": {
+    "less": "^3.9.0",
+    "less-plugin-clean-css": "^1.5.1"
+  },
+  "scripts": {
+    "postinstall": "python3 ./bower-lite",
+    "lessc": "lessc"
+  }
+}

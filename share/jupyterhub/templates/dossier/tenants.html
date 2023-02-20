@@ -1,38 +1,29 @@
 {% extends "page.html" %}
 
 {% block main %}
-<style>
-    #dossier-spawners-list label span {
-        font-weight: normal;
-    }
-    .vcenter {
-        display: inline-block;
-        float: none;
-        vertical-align: middle;
-    }
-</style>
 <div class="container">
     {% block heading %}
     <div class="row text-center">
-        <h1>Spawner Selection</h1>
+        <h1>Tenant Selection</h1>
     </div>
     {% endblock %}
     <div class="row col-sm-offset-2 col-sm-8">
         <form enctype="multipart/form-data" id="spawn_form" action="{{url}}" method="post" role="form">
-            <div class='form-group' id='dossier-spawners-list'>
-                {% for spawner in spawners %}
-                    <label for='spawner-item-{{ spawner.name }}' class='form-control input-group'>
+            <div class='form-group dossier-list'>
+                {% for tenant in tenants %}
+                    <label for='tenant-item-{{ tenant.name }}' class='form-control input-group'>
                         <div class='col-md-1 vcenter'>
                             <input
                                 type='radio'
-                                name='spawner'
-                                id='spawner-item-{{ spawner.slug }}'
-                                value='{{ spawner.slug }}' />
+                                name='tenant'
+                                id='tenant-item-{{ tenant.slug }}'
+                                value='{{ tenant.slug }}'
+                            />
                         </div>
                         <div class='col-md-10 vcenter'>
-                            <strong>{{ spawner.name }}</strong>
-                            {% if spawner.description %}
-                                <span> - {{ spawner.description }}</span>
+                            <strong>{{ tenant.name }}</strong>
+                            {% if tenant.description %}
+                                <span> - {{ tenant.description }}</span>
                             {% endif %}
                         </div>
                     </label>

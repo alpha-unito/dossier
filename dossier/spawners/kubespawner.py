@@ -218,9 +218,9 @@ class DossierKubeSpawner(KubeSpawner):
             else:
                 profile_options_form = self._render_options_form(self.profile_list)
         if (
-                image_policy == "fixed"
-                and resource_policy == "fixed"
-                and not profile_options_form
+            image_policy == "fixed"
+            and resource_policy == "fixed"
+            and not profile_options_form
         ):
             return ""
         dossier_form_template = Environment(loader=BaseLoader()).from_string(
@@ -283,9 +283,11 @@ class DossierKubeSpawner(KubeSpawner):
             }
             if len(spawners) == 0:
                 self.spawner = self
-                return self._get_options_form()
+                return await self._get_options_form()
             else:
-                url = url_path_join(self.hub.base_url, "spawner", self.user.escaped_name)
+                url = url_path_join(
+                    self.hub.base_url, "spawner", self.user.escaped_name
+                )
                 self.handler.redirect(url)
                 raise Finish()
         elif self.spawner == self:
