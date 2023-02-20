@@ -11,7 +11,6 @@ from dossier import utils
 
 
 class DossierSpawnerHandler(BaseHandler):
-
     def __init__(
         self,
         application: "Application",
@@ -31,7 +30,9 @@ class DossierSpawnerHandler(BaseHandler):
             user = self.find_user(user_name)
             if user is None:
                 raise web.HTTPError(404, f"No such user: {user_name}")
-        spawners = {t["metadata"]["name"]: t for t in await utils.get_spawners(self.api)}
+        spawners = {
+            t["metadata"]["name"]: t for t in await utils.get_spawners(self.api)
+        }
         spawner_form_objs = [
             {
                 "name": "Dossier Spawner",
@@ -107,7 +108,6 @@ class DossierSpawnerHandler(BaseHandler):
 
 
 class DossierTenantHandler(BaseHandler):
-
     def __init__(
         self,
         application: "Application",

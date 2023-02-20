@@ -1,0 +1,9 @@
+{% extends "templates/page.html" %}
+{% block title %}Dossier{% endblock %}
+{% block stylesheet %}
+    <link rel="stylesheet" href="{{ static_url("css/style.min.css") }}" type="text/css"/>
+    <link rel="stylesheet" href="{{ static_url("dossier/css/style.min.css") }}" type="text/css"/>
+{% endblock %}
+{% block favicon %}
+    <link rel="icon" href="{{base_url}}favicon" type="image/x-icon">
+{% endblock %}

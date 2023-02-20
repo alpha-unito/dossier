@@ -1,16 +1,6 @@
 {% extends "page.html" %}
 
 {% block main %}
-<style>
-    #dossier-spawners-list label span {
-        font-weight: normal;
-    }
-    .vcenter {
-        display: inline-block;
-        float: none;
-        vertical-align: middle;
-    }
-</style>
 <div class="container">
     {% block heading %}
     <div class="row text-center">
@@ -19,15 +9,17 @@
     {% endblock %}
     <div class="row col-sm-offset-2 col-sm-8">
         <form enctype="multipart/form-data" id="spawn_form" action="{{url}}" method="post" role="form">
-            <div class='form-group' id='dossier-spawners-list'>
+            <div class='form-group dossier-list'>
                 {% for spawner in spawners %}
                     <label for='spawner-item-{{ spawner.name }}' class='form-control input-group'>
-                        <div class='col-md-1 vcenter'>
+                        <div class='container col-md-1 vcenter'>
                             <input
                                 type='radio'
                                 name='spawner'
                                 id='spawner-item-{{ spawner.slug }}'
-                                value='{{ spawner.slug }}' />
+                                value='{{ spawner.slug }}'
+                            />
+                            <span class="checkmark"></span>
                         </div>
                         <div class='col-md-10 vcenter'>
                             <strong>{{ spawner.name }}</strong>
