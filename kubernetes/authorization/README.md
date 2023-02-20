@@ -43,7 +43,7 @@ Tenants can be used to limit access to Cluster resources. In particular, they al
 We chose to use `tenant-owners` as the group identifying Tenant administrators. Such group can be simply added to Keycloak users by creating a `Client Role` resource with the same name in the `kubernetes` client and assigning such role to the desired users. A new tenant can then be created with the following manifest:
 
 ```yaml
-apiVersion: capsule.clastix.io/v1beta1
+apiVersion: capsule.clastix.io/v1beta2
 kind: Tenant
 metadata:
   name: <Tenant Name>

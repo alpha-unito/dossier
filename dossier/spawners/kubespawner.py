@@ -1,15 +1,16 @@
-import asyncio
+import logging
 import uuid
 from typing import MutableMapping
 
 from jinja2 import BaseLoader, Environment
-from kubernetes_asyncio.client import ApiException
+from jupyterhub.utils import maybe_future, url_path_join
 from kubespawner import KubeSpawner
 from kubespawner.clients import shared_client
-from kubespawner.objects import make_namespace
-from slugify import slugify
-from tornado import gen
+from tornado import gen, web
+from tornado.web import Finish
 from traitlets.traitlets import Unicode
+
+from dossier import utils
 
 
 def _get_resource_amount(value, unit):
@@ -73,6 +74,7 @@ class DossierKubeSpawner(KubeSpawner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.custom_api = shared_client("CustomObjectsApi")
+        self.spawner = None
         self.tenant = None
 
     default_image_policy = Unicode(
@@ -199,111 +201,7 @@ class DossierKubeSpawner(KubeSpawner):
             """,
     )
 
-    dossier_spawners_form_template = Unicode(
-        """
-        <style>
-            #dossier-spawners-list label span {
-                font-weight: normal;
-            }
-            .vcenter {
-                display: inline-block;
-                float: none;
-                vertical-align: middle;
-            }
-        </style>
-        <div class='form-group' id='dossier-spawners-list'>
-        {% for spawner in spawners %}
-            <label for='spawner-item-{{ spawner.name }}' class='form-control input-group'>
-                <div class='col-md-1 vcenter'>
-                    <input
-                        type='radio'
-                        name='spawner'
-                        id='spawner-item-{{ spawner.slug }}'
-                        value='{{ spawner.slug }}' />
-                </div>
-                <div class='col-md-10 vcenter'>
-                    <strong>{{ spawner.name }}</strong>
-                    {% if spawner.description %}
-                        <span> - {{ spawner.description }}</span>
-                    {% endif %}
-                </div>
-            </label>
-        {% endfor %}
-        </div>
-        """,
-        config=True,
-        help="""
-            Jinja2 template for constructing the spawners form shown to user.
-
-            The contents of the `spawners` variable are passed in to the template.
-            This should be used to construct the contents of a HTML form. When
-            posted, this form is expected to have an item with name `spawner` and
-            the value of the index of the tenant in the `spawners` variable.
-        """,
-    )
-
-    dossier_tenants_form_template = Unicode(
-        """
-        <style>
-            #dossier-tenants-list label span {
-                font-weight: normal;
-            }
-            .vcenter {
-                display: inline-block;
-                float: none;
-                vertical-align: middle;
-            }
-        </style>
-        <div class='form-group' id='dossier-tenants-list'>
-        {% for tenant in tenants %}
-            <label for='tenant-item-{{ tenant.name }}' class='form-control input-group'>
-                <div class='col-md-1 vcenter'>
-                    <input
-                        type='radio'
-                        name='tenant'
-                        id='tenant-item-{{ tenant.slug }}'
-                        value='{{ tenant.slug }}' />
-                </div>
-                <div class='col-md-10 vcenter'>
-                    <strong>{{ tenant.name }}</strong>
-                    {% if tenant.description %}
-                        <span> - {{ tenant.description }}</span>
-                    {% endif %}
-                </div>
-            </label>
-        {% endfor %}
-        </div>
-        """,
-        config=True,
-        help="""
-            Jinja2 template for constructing the tenants form shown to user.
-
-            The contents of the `tenants` variable are passed in to the template.
-            This should be used to construct the contents of a HTML form. When
-            posted, this form is expected to have an item with name `tenant` and
-            the value of the index of the tenant in the `tenants` variable.
-        """,
-    )
-
-    async def _ensure_namespace(self):
-        ns = make_namespace(
-            f"{self.tenant['metadata']['name']}-{self.namespace}",
-            labels=self._expand_all(self.user_namespace_labels),
-            annotations=self._expand_all(self.user_namespace_annotations),
-        )
-        api = self.api
-        try:
-            await asyncio.wait_for(
-                api.create_namespace(ns),
-                self.k8s_api_request_timeout,
-            )
-        except ApiException as e:
-            if e.status != 409:
-                # It's fine if it already exists
-                self.log.exception("Failed to create namespace %s", self.namespace)
-                raise
-
-    async def get_options_form(self):
+    async def _get_options_form(self):
         annotations = self.tenant["metadata"]["annotations"]
         image_policy = annotations.get(
             "dossier.unito.it/image-policy", self.default_image_policy
@@ -320,9 +218,9 @@ class DossierKubeSpawner(KubeSpawner):
             else:
                 profile_options_form = self._render_options_form(self.profile_list)
         if (
-            image_policy == "fixed"
-            and resource_policy == "fixed"
-            and not profile_options_form
+                image_policy == "fixed"
+                and resource_policy == "fixed"
+                and not profile_options_form
         ):
             return ""
         dossier_form_template = Environment(loader=BaseLoader()).from_string(
@@ -371,6 +269,30 @@ class DossierKubeSpawner(KubeSpawner):
             resources=list(resources.values()),
         )
 
+    async def _start(self):
+        prefix = self.tenant["metadata"]["name"]
+        if not self.namespace.startswith(f"{prefix}-"):
+            self.namespace = f"{prefix}-{self.namespace}"
+        return await maybe_future(super()._start())
+
+    async def get_options_form(self):
+        if self.spawner is None:
+            spawners = {
+                t["metadata"]["name"]: t
+                for t in await utils.get_spawners(self.custom_api)
+            }
+            if len(spawners) == 0:
+                self.spawner = self
+                return self._get_options_form()
+            else:
+                url = url_path_join(self.hub.base_url, "spawner", self.user.escaped_name)
+                self.handler.redirect(url)
+                raise Finish()
+        elif self.spawner == self:
+            return await self._get_options_form()
+        else:
+            return await self.spawner.get_options_form()
+
     async def load_user_options(self):
         if self._profile_list is None:
             if callable(self.profile_list):
@@ -411,53 +333,44 @@ class DossierKubeSpawner(KubeSpawner):
                 ", ".join(map(str, sorted(unrecognized_keys))),
             )
 
-    def render_spawners_form(self, spawners):
-        dossier_form_template = Environment(loader=BaseLoader()).from_string(
-            self.dossier_spawners_form_template
-        )
-        spawner_form_objs = [
-            {
-                "name": "Dossier Spawner",
-                "slug": "default",
-                "description": "Spawns a Notebook on your Kubernetes Tenant",
+    async def run_auth_state_hook(self, auth_state):
+        if self.tenant is None:
+            tenants = {
+                t["metadata"]["name"]: t
+                for t in await utils.get_tenants(self.custom_api)
             }
-        ]
-        for name in spawners:
-            annotations = spawners[name]["metadata"]["annotations"]
-            spawner_form_obj = {
-                "name": annotations.get("dossier.unito.it/display-name", name)
-            }
-            if "dossier.unito.it/description" in annotations:
-                spawner_form_obj["description"] = annotations[
-                    "dossier.unito.it/description"
-                ]
-            spawner_form_obj["slug"] = slugify(name)
-            spawner_form_objs.append(spawner_form_obj)
-        return dossier_form_template.render(spawners=spawner_form_objs)
-
-    def render_tenants_form(self, tenants):
-        dossier_form_template = Environment(loader=BaseLoader()).from_string(
-            self.dossier_tenants_form_template
-        )
-        tenant_form_objs = []
-        for name in tenants:
-            annotations = tenants[name]["metadata"]["annotations"]
-            tenant_form_obj = {
-                "name": annotations.get("dossier.unito.it/display-name", name)
-            }
-            if "dossier.unito.it/description" in annotations:
-                tenant_form_obj["description"] = annotations[
-                    "dossier.unito.it/description"
-                ]
-            tenant_form_obj["slug"] = slugify(name)
-            tenant_form_objs.append(tenant_form_obj)
-        return dossier_form_template.render(tenants=tenant_form_objs)
-
-    async def spawner_from_form(self, formdata):
-        return {"spawner": formdata.get("spawner")[0]}
-
-    async def tenant_from_form(self, formdata):
-        return {"tenant": formdata.get("tenant")[0]}
+            user_tenants = [t for t in tenants if t in auth_state.get("tenants", [])]
+            if len(user_tenants) == 0:
+                if self.default_tenant_name:
+                    if self.log.isEnabledFor(logging.DEBUG):
+                        self.log.debug(
+                            f"User has no tenants assigned. Checking default tenant {self.default_tenant_name}."
+                        )
+                    if self.default_tenant_name in tenants:
+                        self.tenant = tenants[self.default_tenant_name]
+                    else:
+                        raise web.HTTPError(
+                            404,
+                            f"Tenant {self.default_tenant_name} is not defined.",
+                            self.handler,
+                        )
+                else:
+                    raise web.HTTPError(
+                        403,
+                        f"User {self.user.name} has no tenants assigned and no default tenant is defined.",
+                        self.handler,
+                    )
+            elif len(user_tenants) == 1:
+                self.tenant = tenants[user_tenants[0]]
+                if self.log.isEnabledFor(logging.DEBUG):
+                    self.log.debug(
+                        f"User {self.user.name} has a single existing tenant assigned: {self.tenant}."
+                    )
+            else:
+                url = url_path_join(self.hub.base_url, "tenant", self.user.escaped_name)
+                self.handler.redirect(url)
+                raise Finish()
+        await maybe_future(super().run_auth_state_hook(auth_state))
 
     async def options_from_form(self, formdata):
         annotations = self.tenant["metadata"]["annotations"]

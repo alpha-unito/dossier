@@ -81,3 +81,6 @@ singleuser:
     enabled: true
     interNamespaceAccessLabels: accept
   startTimeout: 600
+  storage:
+    dynamic:
+      storageClass: cdk-cinder

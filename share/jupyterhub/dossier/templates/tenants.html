@@ -1,6 +1,16 @@
 {% extends "page.html" %}
 
 {% block main %}
+<style>
+    #dossier-tenants-list label span {
+        font-weight: normal;
+    }
+    .vcenter {
+        display: inline-block;
+        float: none;
+        vertical-align: middle;
+    }
+</style>
 <div class="container">
     {% block heading %}
     <div class="row text-center">
@@ -9,7 +19,25 @@
     {% endblock %}
     <div class="row col-sm-offset-2 col-sm-8">
         <form enctype="multipart/form-data" id="spawn_form" action="{{url}}" method="post" role="form">
-            {{dossier_tenants_form | safe}}
+            <div class='form-group' id='dossier-tenants-list'>
+                {% for tenant in tenants %}
+                    <label for='tenant-item-{{ tenant.name }}' class='form-control input-group'>
+                        <div class='col-md-1 vcenter'>
+                            <input
+                                type='radio'
+                                name='tenant'
+                                id='tenant-item-{{ tenant.slug }}'
+                                value='{{ tenant.slug }}' />
+                        </div>
+                        <div class='col-md-10 vcenter'>
+                            <strong>{{ tenant.name }}</strong>
+                            {% if tenant.description %}
+                                <span> - {{ tenant.description }}</span>
+                            {% endif %}
+                        </div>
+                    </label>
+                {% endfor %}
+            </div>
             <br>
             <div class="feedback-container">
                 <input type="submit" value="Select" class="btn btn-jupyter form-control">

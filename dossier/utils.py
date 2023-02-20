@@ -2,10 +2,9 @@ from kubernetes_asyncio.client import ApiException
 from kubespawner.clients import shared_client
 
 
-def get_spawner(name):
+async def get_spawner(api, name):
     try:
-        api = shared_client("CustomObjectsApi")
-        return api.get_cluster_custom_object(
+        return await api.get_cluster_custom_object(
             group="dossier.unito.it", version="v1alpha1", plural="spawners", name=name
         )
     except ApiException as error:
@@ -15,18 +14,18 @@ def get_spawner(name):
             raise error
 
 
-def get_spawners():
-    api = shared_client("CustomObjectsApi")
-    return api.list_cluster_custom_object(
-        group="dossier.unito.it", version="v1alpha1", plural="spawners"
+async def get_spawners(api):
+    return (
+        await api.list_cluster_custom_object(
+            group="dossier.unito.it", version="v1alpha1", plural="spawners"
+        )
     )["items"]
 
 
-def get_tenant(name):
+async def get_tenant(api, name):
     try:
-        api = shared_client("CustomObjectsApi")
-        return api.get_cluster_custom_object(
-            group="capsule.clastix.io", version="v1beta1", plural="tenants", name=name
+        return await api.get_cluster_custom_object(
+            group="capsule.clastix.io", version="v1beta2", plural="tenants", name=name
         )
     except ApiException as error:
         if error.status == 404:
@@ -35,8 +34,9 @@ def get_tenant(name):
             raise error
 
 
-def get_tenants():
-    api = shared_client("CustomObjectsApi")
-    return api.list_cluster_custom_object(
-        group="capsule.clastix.io", version="v1beta1", plural="tenants"
+async def get_tenants(api):
+    return (
+        await api.list_cluster_custom_object(
+            group="capsule.clastix.io", version="v1beta2", plural="tenants"
+        )
     )["items"]
