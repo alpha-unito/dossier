@@ -10,19 +10,11 @@ from traitlets.traitlets import Bool, Dict, Integer, Unicode
 
 
 class SSHSpawner(Spawner):
-    remote_host = Unicode(
-        help="SSH remote host to spawn sessions on",
-        config=True)
+    remote_host = Unicode(help="SSH remote host to spawn sessions on", config=True)
 
-    remote_port = Unicode(
-        "22",
-        help="SSH remote port number",
-        config=True)
+    remote_port = Unicode("22", help="SSH remote port number", config=True)
 
-    ssh_command = Unicode(
-        "/usr/bin/ssh",
-        help="Actual SSH command",
-        config=True)
+    ssh_command = Unicode("/usr/bin/ssh", help="Actual SSH command", config=True)
 
     path = Unicode(
         "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:~/.local/bin",
@@ -94,16 +86,16 @@ class SSHSpawner(Spawner):
         {"private_key_file": "", "public_key_file": ""},
         config=True,
         help="The path to the credentials that should be "
-             "copied to the Notebook during the spawn",
+        "copied to the Notebook during the spawn",
     )
 
     async def _transfer(self, username, key, certificate, local_resource_path, dst):
         # create resource path dir in user's home on remote
         async with asyncssh.connect(
-                self.remote_host,
-                username=username,
-                client_keys=[(key, certificate)],
-                known_hosts=None,
+            self.remote_host,
+            username=username,
+            client_keys=[(key, certificate)],
+            known_hosts=None,
         ) as conn:
             mkdir_cmd = "mkdir -p {path} 2>/dev/null".format(path=dst)
             _ = await conn.run(mkdir_cmd)
@@ -114,10 +106,10 @@ class SSHSpawner(Spawner):
             for f in os.listdir(local_resource_path)
         ]
         async with asyncssh.connect(
-                self.remote_host,
-                username=username,
-                client_keys=[(key, certificate)],
-                known_hosts=None,
+            self.remote_host,
+            username=username,
+            client_keys=[(key, certificate)],
+            known_hosts=None,
         ) as conn:
             await asyncssh.scp(files, (conn, dst))
 
@@ -172,19 +164,22 @@ class SSHSpawner(Spawner):
                     key=k,
                     certificate=c,
                     local_resource_path=local_resource_path,
-                    dst=self.resource_path)
+                    dst=self.resource_path,
+                )
 
         if self.ssh_backtunnel_client:
             with TemporaryDirectory() as td:
                 local_resource_path = td
                 _ = self.stage_ssh_keys(
-                    self.ssh_forward_credentials_paths, local_resource_path)
+                    self.ssh_forward_credentials_paths, local_resource_path
+                )
                 await self._transfer(
                     username=username,
                     key=k,
                     certificate=c,
                     local_resource_path=local_resource_path,
-                    dst=self.ssh_backtunnel_client_path)
+                    dst=self.ssh_backtunnel_client_path,
+                )
 
         if self.hub_api_url != "":
             old = "--hub-api-url={}".format(self.hub.api_url)
@@ -248,12 +243,15 @@ class SSHSpawner(Spawner):
         cf = kf + "-cert.pub"
         k = asyncssh.read_private_key(kf)
         c = asyncssh.read_certificate(cf)
-        self.log.debug("Connecting to {}@{}:{} using key {} and certificate {}".format(
-            username, self.remote_host, self.remote_port, kf, cf))
+        self.log.debug(
+            "Connecting to {}@{}:{} using key {} and certificate {}".format(
+                username, self.remote_host, self.remote_port, kf, cf
+            )
+        )
 
         # this needs to be done against remote_host, first time we're calling up
         async with asyncssh.connect(
-                self.remote_host, username=username, client_keys=[(k, c)], known_hosts=None
+            self.remote_host, username=username, client_keys=[(k, c)], known_hosts=None
         ) as conn:
             result = await conn.run(self.remote_port_command)
             stdout = result.stdout
@@ -280,7 +278,11 @@ class SSHSpawner(Spawner):
         env = super(SSHSpawner, self).get_env()
         env["JUPYTERHUB_API_URL"] = self.hub_api_url
         env["JUPYTERHUB_ACTIVITY_URL"] = url_path_join(
-            self.hub_api_url, 'users', getattr(self.user, 'escaped_name', self.user.name), 'activity')
+            self.hub_api_url,
+            "users",
+            getattr(self.user, "escaped_name", self.user.name),
+            "activity",
+        )
         env["PATH"] = self.path
         username = self.get_remote_user(self.user.name)
         kf = self.ssh_keyfile.format(username=username)
@@ -310,7 +312,7 @@ class SSHSpawner(Spawner):
                 self.log.debug(run_script + " was written as:\n" + f.read())
 
         async with asyncssh.connect(
-                self.remote_host, username=username, client_keys=[(k, c)], known_hosts=None
+            self.remote_host, username=username, client_keys=[(k, c)], known_hosts=None
         ) as conn:
             result = await conn.run("bash -s", stdin=run_script)
             stdout = result.stdout
@@ -337,7 +339,7 @@ class SSHSpawner(Spawner):
         command = "kill -s %s %d < /dev/null" % (sig, self.pid)
 
         async with asyncssh.connect(
-                self.remote_host, username=username, client_keys=[(k, c)], known_hosts=None
+            self.remote_host, username=username, client_keys=[(k, c)], known_hosts=None
         ) as conn:
             result = await conn.run(command)
             stdout = result.stdout

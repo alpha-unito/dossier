@@ -12,7 +12,7 @@ class DossierFaviconHandler(StaticFileHandler):
     """A singular handler for serving the logo."""
 
     def get(self):
-        return super().get('')
+        return super().get("")
 
     @classmethod
     def get_absolute_path(cls, root, path):
@@ -22,25 +22,30 @@ class DossierFaviconHandler(StaticFileHandler):
 
 class Dossier(JupyterHub):
     favicon_file = Unicode(
-        '',
+        "",
         help="Specify path to a favicon image to override the Jupyter favicon in the browser tab.",
     ).tag(config=True)
 
-    @default('favicon_file')
+    @default("favicon_file")
     def _favicon_file_default(self):
-        return os.path.join(self.data_files_path, 'dossier', 'static', 'favicon.ico')
+        return os.path.join(self.data_files_path, "dossier", "static", "favicon.ico")
 
-    @default('logo_file')
+    @default("logo_file")
     def _logo_file_default(self):
-        return os.path.join(self.data_files_path, 'dossier', 'static', 'images', 'dossier.png')
+        return os.path.join(
+            self.data_files_path, "dossier", "static", "images", "dossier.png"
+        )
 
     def init_handlers(self):
         super().init_handlers()
-        dossier_handlers = {h[0]: h for h in self.add_url_prefix(
-            self.hub_prefix,
-            handlers.default_handlers + [
-                (r'/favicon', DossierFaviconHandler, {'path': self.favicon_file})
-            ])}
+        dossier_handlers = {
+            h[0]: h
+            for h in self.add_url_prefix(
+                self.hub_prefix,
+                handlers.default_handlers
+                + [(r"/favicon", DossierFaviconHandler, {"path": self.favicon_file})],
+            )
+        }
         for i, handler_tuple in enumerate(self.handlers):
             regex = handler_tuple[0]
             if regex in dossier_handlers:
@@ -53,7 +58,9 @@ class Dossier(JupyterHub):
         self.handlers = h
 
     def init_tornado_settings(self):
-        dossier_template_paths = os.path.join(self.data_files_path, 'dossier', 'templates')
+        dossier_template_paths = os.path.join(
+            self.data_files_path, "dossier", "templates"
+        )
         if dossier_template_paths not in self.template_paths:
             self.template_paths.append(dossier_template_paths)
         super().init_tornado_settings()
