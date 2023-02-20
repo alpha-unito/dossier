@@ -6,7 +6,7 @@ from textwrap import dedent
 import asyncssh
 from jupyterhub.spawner import Spawner
 from jupyterhub.utils import url_path_join
-from traitlets import Bool, Dict, Integer, Unicode
+from traitlets.traitlets import Bool, Dict, Integer, Unicode
 
 
 class SSHSpawner(Spawner):

@@ -3,7 +3,7 @@ from jupyterhub.handlers import LogoutHandler
 
 class DossierLogoutHandler(LogoutHandler):
 
-    def clear_tenants(self):
+    def handle_logout(self):
         user = self.current_user
         for spawner in user.spawners.values():
             if self.shutdown_on_logout:
@@ -18,10 +18,7 @@ class DossierLogoutHandler(LogoutHandler):
                     delattr(spawner, 'confirmed')
         if hasattr(user, 'original_spawner'):
             user.spawners[''] = user.original_spawner
-
-    async def get(self):
-        self.clear_tenants()
-        await super().get()
+        super().handle_logout()
 
 
 default_handlers = [

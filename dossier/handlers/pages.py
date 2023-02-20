@@ -5,6 +5,7 @@ from jupyterhub.handlers.pages import SpawnHandler
 from jupyterhub.utils import maybe_future, url_path_join
 from tornado import web
 
+from dossier import utils
 from dossier.spawners.kubespawner import DossierKubeSpawner
 
 
@@ -30,7 +31,7 @@ class DossierSpawnHandler(SpawnHandler):
         if isinstance(spawner, DossierKubeSpawner):
             if spawner.tenant is None:
                 tenants = {t['metadata']['name']: t
-                           for t in spawner.get_tenants() if t['metadata']['name'] in auth_state['tenants']}
+                           for t in utils.get_tenants() if t['metadata']['name'] in auth_state['tenants']}
                 if len(tenants) == 0:
                     if spawner.default_tenant_name:
                         if spawner.default_tenant_name in tenants:
@@ -54,7 +55,7 @@ class DossierSpawnHandler(SpawnHandler):
                         dossier_tenants_form=spawner.render_tenants_form(tenants))
                     return self.finish(html)
             if not hasattr(spawner, 'confirmed'):
-                spawners = {s['metadata']['name']: s for s in spawner.get_spawners()
+                spawners = {s['metadata']['name']: s for s in utils.get_spawners()
                             if spawner.tenant['metadata']['name'] in s['spec'].get('tenants', [])}
                 if len(spawners) == 0:
                     spawner.confirmed = True

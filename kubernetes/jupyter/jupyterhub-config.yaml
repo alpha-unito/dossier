@@ -1,23 +1,28 @@
 debug:
   enabled: true
 hub:
+  args:
+    - dossier
+    - --config
+    - /usr/local/etc/jupyterhub/jupyterhub_config.py
+    - --debug
   config:
     Authenticator:
       auto_login: false
     GenericOAuthenticator:
       claim_groups_key: tenants
-      allowed_groups:
-        - admin
       admin_groups:
         - admin
       client_id: jupyter
       client_secret: <Keycloak jupyter client secret>
       enable_auth_state: true
       oauth_callback_url: https://<Dossier FQDN>/hub/oauth_callback
-      authorize_url: https://<Keycloak FQDN>/auth/realms/dossier/protocol/openid-connect/auth
-      token_url: https://<Keycloak FQDN>/auth/realms/dossier/protocol/openid-connect/token
-      userdata_url: https://<Keycloak FQDN>/auth/realms/dossier/protocol/openid-connect/userinfo
+      authorize_url: https://<Keycloak FQDN>/realms/dossier/protocol/openid-connect/auth
+      token_url: https://<Keycloak FQDN>/realms/dossier/protocol/openid-connect/token
+      userdata_url: https://<Keycloak FQDN>/realms/dossier/protocol/openid-connect/userinfo
       login_service: keycloak
+      scope:
+        - openid
       username_key: preferred_username
     JupyterHub:
       authenticator_class: generic-oauth

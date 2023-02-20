@@ -1,8 +1,9 @@
+import logging
 import os
 
 from jupyterhub.app import JupyterHub
 from tornado.web import StaticFileHandler
-from traitlets import Unicode, default
+from traitlets.traitlets import Unicode, default
 
 from dossier import handlers
 
@@ -29,6 +30,7 @@ class Dossier(JupyterHub):
     def _favicon_file_default(self):
         return os.path.join(self.data_files_path, 'dossier', 'static', 'favicon.ico')
 
+    @default('logo_file')
     def _logo_file_default(self):
         return os.path.join(self.data_files_path, 'dossier', 'static', 'images', 'dossier.png')
 
@@ -42,6 +44,8 @@ class Dossier(JupyterHub):
         for i, handler_tuple in enumerate(self.handlers):
             regex = handler_tuple[0]
             if regex in dossier_handlers:
+                if self.log.isEnabledFor(logging.DEBUG):
+                    self.log.debug(f"Handler regex `{regex}` overwritten by Dossier")
                 self.handlers[i] = dossier_handlers[regex]
                 del dossier_handlers[regex]
         h = list(dossier_handlers.values())

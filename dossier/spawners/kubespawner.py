@@ -9,7 +9,7 @@ from kubespawner.clients import shared_client
 from kubespawner.objects import make_namespace
 from slugify import slugify
 from tornado import gen
-from traitlets import Unicode
+from traitlets.traitlets import Unicode
 
 
 def _get_resource_amount(value, unit):
@@ -303,44 +303,6 @@ class DossierKubeSpawner(KubeSpawner):
                 # It's fine if it already exists
                 self.log.exception("Failed to create namespace %s", self.namespace)
                 raise
-
-    def get_spawner(self, name):
-        try:
-            return self.custom_api.get_cluster_custom_object(
-                group="dossier.unito.it",
-                version="v1alpha1",
-                plural="spawners",
-                name=name)
-        except ApiException as error:
-            if error.status == 404:
-                return None
-            else:
-                raise error
-
-    def get_spawners(self):
-        return self.custom_api.list_cluster_custom_object(
-            group="dossier.unito.it",
-            version="v1alpha1",
-            plural="spawners")['items']
-
-    def get_tenant(self, name):
-        try:
-            return self.custom_api.get_cluster_custom_object(
-                group="capsule.clastix.io",
-                version="v1beta1",
-                plural="tenants",
-                name=name)
-        except ApiException as error:
-            if error.status == 404:
-                return None
-            else:
-                raise error
-
-    def get_tenants(self):
-        return self.custom_api.list_cluster_custom_object(
-            group="capsule.clastix.io",
-            version="v1beta1",
-            plural="tenants")['items']
 
     async def get_options_form(self):
         annotations = self.tenant['metadata']['annotations']
