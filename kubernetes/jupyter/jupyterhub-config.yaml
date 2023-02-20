@@ -1,10 +1,6 @@
 debug:
   enabled: true
 hub:
-  args:
-    - dossier
-    - --config
-    - /usr/local/etc/jupyterhub/jupyterhub_config.py
   config:
     Authenticator:
       auto_login: false
