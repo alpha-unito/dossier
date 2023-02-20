@@ -8,6 +8,8 @@ from dossier.version import VERSION
 this_directory = path.abspath(path.dirname(__file__))
 with open(path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
+with open(os.path.join(this_directory, "requirements.txt")) as f:
+    install_requires = f.read().splitlines()
 
 data_files = []
 for (d, dirs, filenames) in os.walk(os.path.join(this_directory, 'share', 'jupyterhub')):
@@ -36,17 +38,8 @@ setup(
     description="Dossier platform",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=[
-        "asyncssh",
-        "jinja2",
-        "jupyterhub",
-        "jupyterhub-kubespawner",
-        "oauthenticator",
-        "slugify",
-        "traitlets",
-        "tornado"
-    ],
-    python_requires=">=3.6",
+    install_requires=install_requires,
+    python_requires=">=3.8",
     zip_safe=False,
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -55,6 +48,14 @@ setup(
         "Intended Audience :: Education",
         "Intended Audience :: System Administrators",
         "Operating System :: POSIX",
-        "Programming Language :: Python :: 3.6",
+        "Operating System :: MacOS",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Topic :: Scientific/Engineering",
+        "Topic :: System :: Distributed Computing",
     ]
 )
