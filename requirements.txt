@@ -6,4 +6,4 @@ kubernetes_asyncio==24.2.2
 oauthenticator==15.1.0
 python-slugify==8.0.0
 traitlets==5.9.0
-tornado==6.2
+tornado==6.3.1
