@@ -1,7 +1,7 @@
 asyncssh==2.14.0
 Jinja2==3.1.2
 jupyterhub==3.1.1
-jupyterhub-kubespawner==4.3.0
+jupyterhub-kubespawner==6.2.0
 kubernetes_asyncio==24.2.2
 oauthenticator==15.1.0
 python-slugify==8.0.0
