@@ -1,6 +1,6 @@
 import logging
 
-from jupyterhub.utils import maybe_future
+from kubernetes_asyncio.client import CustomObjectsApi
 from kubespawner.clients import load_config, shared_client
 from oauthenticator.generic import GenericOAuthenticator
 
@@ -11,43 +11,30 @@ class DossierOAuthenticator(GenericOAuthenticator):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         load_config()
-        self.api = shared_client("CustomObjectsApi")
-
-    def _get_user_groups(self, authentication=None):
-        if authentication is not None:
-            if "tenants" not in authentication.setdefault("auth_state", {}):
-                authentication["auth_state"]["tenants"] = (
-                    authentication.get("auth_state", {})
-                    .get("oauth_user", {})
-                    .get(self.claim_groups_key, [])
-                )
-            return authentication["auth_state"]["tenants"]
-        else:
-            return []
+        self.api: CustomObjectsApi = shared_client("CustomObjectsApi")
 
     async def check_allowed(self, username, authentication=None):
-        groups = self._get_user_groups(authentication)
-        if self.log.isEnabledFor(logging.DEBUG):
-            self.log.debug(
-                f"User {username} belongs to the following groups: {','.join(groups)}."
-            )
-        if self.check_user_in_groups(groups, self.admin_groups):
+        if await super().check_allowed(username, authentication):
             return True
-        tenants = [t["metadata"]["name"] for t in await utils.get_tenants(self.api)]
-        if self.log.isEnabledFor(logging.DEBUG):
-            if tenants:
+        if self.manage_groups:
+            if self.log.isEnabledFor(logging.DEBUG):
                 self.log.debug(
-                    f"The following tenants have been found on the cluster: {','.join(tenants)}."
+                    f"User {username} belongs to the following groups: {authentication['groups']}."
                 )
-            else:
-                self.log.debug(f"No tenants found on the cluster.")
-        if self.check_user_in_groups(groups, tenants):
-            return True
-        return await maybe_future(super().check_allowed(username, authentication))
-
-    def is_admin(self, handler, authentication):
-        groups = self._get_user_groups(authentication)
-        if self.check_user_in_groups(groups, self.admin_groups):
-            return True
+            # Users that belong to an existing tenant are allowed
+            tenants = {t["metadata"]["name"] for t in await utils.get_tenants(self.api)}
+            if self.log.isEnabledFor(logging.DEBUG):
+                if tenants:
+                    self.log.debug(
+                        f"The following tenants have been found on the cluster: {','.join(tenants)}."
+                    )
+                else:
+                    self.log.debug("No tenants found on the cluster.")
+            return any(set(authentication["groups"]) & tenants)
         else:
-            return super().is_admin(handler, authentication)
+            if self.log.isEnabledFor(logging.WARNING):
+                self.log.warning(
+                    "Tenants support is disabled. Please activate the `manage_groups` option "
+                    "for the `Authenticator` class to enable it."
+                )
+            return False

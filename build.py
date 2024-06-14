@@ -2,19 +2,12 @@ import distutils.command.build_py
 import distutils.command.sdist
 import os
 import sys
+from abc import ABC
 from subprocess import check_call
 
-from setuptools import Command, setup
-
-from dossier.version import VERSION
+from setuptools import Command
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
-    long_description = f.read()
-with open(os.path.join(this_directory, "requirements.txt")) as f:
-    install_requires = f.read().splitlines()
-
-
 jupyterhub_directory = os.path.join(this_directory, "share", "jupyterhub")
 static_directory = os.path.join(jupyterhub_directory, "static", "dossier")
 
@@ -27,7 +20,7 @@ def get_data_files():
     return data_files
 
 
-class BaseCommand(Command):
+class BaseCommand(Command, ABC):
     user_options = []
 
     def initialize_options(self):
@@ -43,7 +36,7 @@ class BaseCommand(Command):
         return []
 
 
-class CSS(BaseCommand):
+class css(BaseCommand):
     def should_run(self):
         """Does less need to run?"""
         # from IPython.html.tasks.py
@@ -102,7 +95,7 @@ class CSS(BaseCommand):
         assert not self.should_run(), "CSS.run failed"
 
 
-class NPM(BaseCommand):
+class npm(BaseCommand):
     user_options = []
     node_modules = os.path.join(this_directory, "node_modules")
     bower_dir = os.path.join(static_directory, "components")
@@ -149,53 +142,3 @@ class sdist(distutils.command.sdist.sdist):
         self.run_command("js")
         self.run_command("css")
         return super().run()
-
-
-setup(
-    name="dossier",
-    version=VERSION,
-    packages=["dossier", "dossier.auth", "dossier.handlers", "dossier.spawners"],
-    data_files=get_data_files(),
-    entry_points={
-        "jupyterhub.authenticators": [
-            "dossier = dossier.auth.oauth:DossierOAuthenticator"
-        ],
-        "jupyterhub.spawners": [
-            "dossier = dossier.spawners.kubespawner:DossierKubeSpawner",
-        ],
-        "console_scripts": ["dossier = dossier.app:main"],
-    },
-    url="https://github.com/alpha-unito/dossier",
-    download_url="".join(["https://github.com/alpha-unito/dossier/releases"]),
-    author="Iacopo Colonnelli",
-    author_email="iacopo.colonnelli@unito.it",
-    cmdclass={
-        "css": CSS,
-        "js": NPM,
-        "build_py": build_py,
-        "sdist": sdist,
-    },
-    description="Dossier platform",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    install_requires=install_requires,
-    python_requires=">=3.8",
-    zip_safe=False,
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
-        "Intended Audience :: Science/Research",
-        "Intended Audience :: Education",
-        "Intended Audience :: System Administrators",
-        "Operating System :: POSIX",
-        "Operating System :: MacOS",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Topic :: Scientific/Engineering",
-        "Topic :: System :: Distributed Computing",
-    ],
-)

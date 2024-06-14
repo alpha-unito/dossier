@@ -1,5 +1,4 @@
 from kubernetes_asyncio.client import ApiException
-from kubespawner.clients import shared_client
 
 
 async def get_spawner(api, name):

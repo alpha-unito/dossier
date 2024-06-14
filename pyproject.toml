@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dossier"
+authors = [
+    {name = "Iacopo Colonnelli", email = "iacopo.colonnelli@unito.it"}
+]
+description = "Dosser JupyterHub extension"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "LGPL-3.0-or-later"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Distributed Computing"
+]
+dynamic = ["dependencies", "optional-dependencies", "version"]
+
+[project.scripts]
+dossier = "dossier.app:main"
+
+[project.urls]
+Package = "https://pypi.org/project/dossier"
+Repository = "https://github.com/alpha-unito/dossier"
+Docker = "https://hub.docker.com/r/alphaunito/dossier"
+
+[project.entry-points]
+"jupyterhub.authenticators" = {"dossier" = "dossier.auth.oauth:DossierOAuthenticator"}
+"jupyterhub.spawners" = {"dossier" = "dossier.spawners.kubespawner:DossierKubeSpawner"}
+
+[tool.setuptools]
+packages = [
+    "dossier",
+    "dossier.auth",
+    "dossier.handlers",
+    "dossier.spawners"
+]
+py-modules = ["build"]
+zip-safe = false
+
+[tool.setuptools.dynamic.optional-dependencies]
+bandit = {file = "bandit-requirements.txt"}
+lint = {file = "lint-requirements.txt"}
+test = {file = "test-requirements.txt"}
+
+[tool.setuptools.cmdclass]
+build_py = "build.build_py"
+css = "build.css"
+js = "build.npm"
+sdist = "build.sdist"
+
+[tool.setuptools.dynamic]
+dependencies = {file = "requirements.txt"}
+version = {attr = "dossier.version.VERSION"}

@@ -17,7 +17,7 @@ helm install capsule clastix/capsule    \
     --values capsule-values.yaml
 ```
 
-Then, it is necessary to manualyl patch all the `capsule.clastix.io` CRDs by adding the following `annotation`:
+Then, it is necessary to manually patch all the `capsule.clastix.io` CRDs by adding the following `annotation`:
 
 ```yaml
 apiVersion: apiextensions.k8s.io/v1

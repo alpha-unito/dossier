@@ -16,7 +16,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: JupyterHub Spawner to remote locations
+          description: Dossier Spawner to remote locations
           type: object
           properties:
             apiVersion:

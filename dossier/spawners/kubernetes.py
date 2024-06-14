@@ -1,12 +1,11 @@
-import logging
-import uuid
-from typing import MutableMapping
+from __future__ import annotations
+
+from typing import Any, MutableMapping
 
 from jinja2 import BaseLoader, Environment
 from jupyterhub.utils import maybe_future, url_path_join
 from kubespawner import KubeSpawner
 from kubespawner.clients import shared_client
-from tornado import gen, web
 from tornado.web import Finish
 from traitlets.traitlets import Unicode
 
@@ -19,7 +18,7 @@ def _get_resource_amount(value, unit):
     elif unit == "byte":
         return _get_resource_amount_in_bytes(value)
     else:
-        raise Exception("Unknown resource unit {}.".format(unit))
+        raise Exception(f"Unknown resource unit {unit}.")
 
 
 def _get_resource_amount_in_elements(value):
@@ -75,14 +74,14 @@ class DossierKubeSpawner(KubeSpawner):
         super().__init__(*args, **kwargs)
         self.custom_api = shared_client("CustomObjectsApi")
         self.spawner = None
-        self.tenant = None
+        self.tenant: MutableMapping[str, Any] | None = None
 
     default_image_policy = Unicode(
         "fixed",
         config=True,
         help="""
         Image policy to be used to allow users select the Notebook image.
-        
+
         Supported values are:
           - `fixed` -> only the base (global) image can be used
           - `profiles` -> users can select between multiple available profiles
@@ -94,7 +93,7 @@ class DossierKubeSpawner(KubeSpawner):
         "fixed",
         config=True,
         help="""
-            Resource policy to be used to allow users select the Notebook resourcs.
+            Resource policy to be used to allow users select the Notebook resources.
 
             Supported values are:
               - `fixed` -> default limit ranges are used
@@ -103,17 +102,17 @@ class DossierKubeSpawner(KubeSpawner):
             """,
     )
 
-    default_tenant_name = Unicode(
+    default_tenant = Unicode(
         None,
         config=True,
         allow_none=True,
         help="""
         Tenant to be uses when a user has no assigned tenants.
-        
+
         If the default tenant is not configured, users without assigned tenants won't be able to start
         their pods in Dossier.
-        
-        This `tenant` must already exist in the cluster. 
+
+        This `tenant` must already exist in the cluster.
         """,
     )
 
@@ -124,7 +123,7 @@ class DossierKubeSpawner(KubeSpawner):
             font-weight: normal;
         }
         </style>
-        
+
         {% if image_policy == "profiles" %}
             <h2>Image Selection</h2>
             {{profile_options_form | safe}}
@@ -139,7 +138,7 @@ class DossierKubeSpawner(KubeSpawner):
                 </label>
             </div>
         {% endif %}
-        
+
         {% if resource_policy == "manual" %}
             <h2>Resources Selection</h2>
             {% for resource in resources %}
@@ -202,6 +201,10 @@ class DossierKubeSpawner(KubeSpawner):
     )
 
     async def _get_options_form(self):
+        # If tenant has not been configured yet, skip the options form
+        if self.tenant is None:
+            return None
+        # Retrieve annotations from tenant metadata
         annotations = self.tenant["metadata"]["annotations"]
         image_policy = annotations.get(
             "dossier.unito.it/image-policy", self.default_image_policy
@@ -222,7 +225,7 @@ class DossierKubeSpawner(KubeSpawner):
             and resource_policy == "fixed"
             and not profile_options_form
         ):
-            return ""
+            return None
         dossier_form_template = Environment(loader=BaseLoader()).from_string(
             self.dossier_options_form_template
         )
@@ -294,85 +297,6 @@ class DossierKubeSpawner(KubeSpawner):
             return await self._get_options_form()
         else:
             return await self.spawner.get_options_form()
-
-    async def load_user_options(self):
-        if self._profile_list is None:
-            if callable(self.profile_list):
-                profile_list = await gen.maybe_future(self.profile_list(self))
-            else:
-                profile_list = self.profile_list
-
-            self._profile_list = self._init_profile_list(profile_list)
-
-        selected_profile = self.user_options.get("profile", None)
-        if self._profile_list:
-            await self._load_profile(selected_profile)
-        elif selected_profile:
-            if isinstance(selected_profile, MutableMapping):
-                random_name = str(uuid.uuid4())
-                selected_profile["display_name"] = "Dynamically generated profile"
-                selected_profile["slug"] = random_name
-                self._profile_list.append(selected_profile)
-                try:
-                    await self._load_profile(random_name)
-                finally:
-                    for profile in list(self._profile_list):
-                        if profile["slug"] == random_name:
-                            self._profile_list.remove(profile)
-                            break
-            else:
-                self.log.warning(
-                    "Profile %r requested, but profiles are not enabled",
-                    selected_profile,
-                )
-
-        # help debugging by logging any option fields that are not recognized
-        option_keys = set(self.user_options)
-        unrecognized_keys = option_keys.difference(self._user_option_keys)
-        if unrecognized_keys:
-            self.log.warning(
-                "Ignoring unrecognized KubeSpawner user_options: %s",
-                ", ".join(map(str, sorted(unrecognized_keys))),
-            )
-
-    async def run_auth_state_hook(self, auth_state):
-        if self.tenant is None:
-            tenants = {
-                t["metadata"]["name"]: t
-                for t in await utils.get_tenants(self.custom_api)
-            }
-            user_tenants = [t for t in tenants if t in auth_state.get("tenants", [])]
-            if len(user_tenants) == 0:
-                if self.default_tenant_name:
-                    if self.log.isEnabledFor(logging.DEBUG):
-                        self.log.debug(
-                            f"User has no tenants assigned. Checking default tenant {self.default_tenant_name}."
-                        )
-                    if self.default_tenant_name in tenants:
-                        self.tenant = tenants[self.default_tenant_name]
-                    else:
-                        raise web.HTTPError(
-                            404,
-                            f"Tenant {self.default_tenant_name} is not defined.",
-                            self.handler,
-                        )
-                else:
-                    raise web.HTTPError(
-                        403,
-                        f"User {self.user.name} has no tenants assigned and no default tenant is defined.",
-                        self.handler,
-                    )
-            elif len(user_tenants) == 1:
-                self.tenant = tenants[user_tenants[0]]
-                if self.log.isEnabledFor(logging.DEBUG):
-                    self.log.debug(
-                        f"User {self.user.name} has a single existing tenant assigned: {self.tenant}."
-                    )
-            else:
-                url = url_path_join(self.hub.base_url, "tenant", self.user.escaped_name)
-                self.handler.redirect(url)
-                raise Finish()
-        await maybe_future(super().run_auth_state_hook(auth_state))
 
     async def options_from_form(self, formdata):
         annotations = self.tenant["metadata"]["annotations"]

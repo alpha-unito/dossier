@@ -9,29 +9,44 @@
     {% endblock %}
     <div class="row col-sm-offset-2 col-sm-8">
         <form enctype="multipart/form-data" id="spawn_form" action="{{url}}" method="post" role="form">
-            <div class='form-group dossier-list'>
+            <div
+                class="list-group btn-block btn-group-vertical btn-group-toggle dossier-list"
+                role="group"
+                data-toggle="buttons"
+            >
                 {% for tenant in tenants %}
-                    <label for='tenant-item-{{ tenant.name }}' class='form-control input-group'>
-                        <div class='col-md-1 vcenter'>
-                            <input
-                                type='radio'
-                                name='tenant'
-                                id='tenant-item-{{ tenant.slug }}'
-                                value='{{ tenant.slug }}'
-                            />
-                        </div>
-                        <div class='col-md-10 vcenter'>
-                            <strong>{{ tenant.name }}</strong>
-                            {% if tenant.description %}
-                                <span> - {{ tenant.description }}</span>
-                            {% endif %}
-                        </div>
+                    <label
+                        for="tenant-item-{{ tenant.name }}"
+                        class="btn btn-default list-group-item"
+                        data-toggle="button"
+                        style="text-align: left"
+                    >
+                        <input
+                            class="form-check-input hidden"
+                            type="radio"
+                            name="tenant"
+                            id="tenant-item-{{ tenant.name }}"
+                            value="{{ tenant.slug }}"
+                        />
+                        <h4 class="list-group-item-text">
+                            {{ tenant.name }}
+                        </h4>
+                        {% if tenant.description %}
+                            <p class="list-group-item-text" style="font-weight: normal;">
+                                {{ tenant.description }}
+                            </p>
+                        {% endif %}
                     </label>
                 {% endfor %}
             </div>
             <br>
             <div class="feedback-container">
-                <input type="submit" value="Select" class="btn btn-jupyter form-control">
+                <input
+                    type="submit"
+                    value="Select"
+                    class="btn btn-jupyter btn-lg form-control"
+                    style="height: auto;"
+                >
                 <div class="feedback-widget hidden">
                     <i class="fa fa-spinner"></i>
                 </div>
