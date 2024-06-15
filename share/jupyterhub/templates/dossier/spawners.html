@@ -9,23 +9,33 @@
     {% endblock %}
     <div class="row col-sm-offset-2 col-sm-8">
         <form enctype="multipart/form-data" id="spawn_form" action="{{url}}" method="post" role="form">
-            <div class='form-group dossier-list'>
+            <div
+                class="list-group btn-block btn-group-vertical btn-group-toggle dossier-list"
+                role="group"
+                data-toggle="buttons"
+            >
                 {% for spawner in spawners %}
-                    <label for='spawner-item-{{ spawner.name }}' class='form-control input-group'>
-                        <div class='col-md-1 vcenter'>
-                            <input
-                                type='radio'
-                                name='spawner'
-                                id='spawner-item-{{ spawner.slug }}'
-                                value='{{ spawner.slug }}'
-                            />
-                        </div>
-                        <div class='col-md-10 vcenter'>
-                            <strong>{{ spawner.name }}</strong>
-                            {% if spawner.description %}
-                                <span> - {{ spawner.description }}</span>
-                            {% endif %}
-                        </div>
+                    <label
+                        for="spawner-item-{{ spawner.name }}"
+                        class="btn btn-default list-group-item"
+                        data-toggle="button"
+                        style="text-align: left; white-space: normal"
+                    >
+                        <input
+                            class="form-check-input hidden"
+                            type="radio"
+                            name="spawner"
+                            id="spawner-item-{{ spawner.name }}"
+                            value="{{ spawner.slug }}"
+                        />
+                        <h4 class="list-group-item-text">
+                            {{ spawner.name }}
+                        </h4>
+                        {% if spawner.description %}
+                            <p class="list-group-item-text" style="font-weight: normal;">
+                                {{ spawner.description }}
+                            </p>
+                        {% endif %}
                     </label>
                 {% endfor %}
             </div>

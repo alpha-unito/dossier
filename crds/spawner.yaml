@@ -43,6 +43,12 @@ spec:
               required:
                 - class
               properties:
+                attributes:
+                  description: >-
+                    Spawner attribbutes configured by the system administrator. Attributes can be different
+                    for each spawner class.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
                 class:
                   description: >-
                     A fully qualified class name of a Jupyter Notebooks spawner. The class must extend the
@@ -50,20 +56,14 @@ spec:
                     More info:
                     https://github.com/jupyterhub/jupyterhub/blob/main/docs/source/reference/spawners.md
                   type: string
-                parameters:
+                options:
                   description: >-
-                    Configurable parameters of the selected spawner class that must be populated by each user.
-                    Parameters can be different for each spawner class
-                  type: object
-                  x-kubernetes-preserve-unknown-fields: true
-                properties:
-                  description: >-
-                    Spawner parameters configured directly by the system administrator. Properties can be different
-                    for each spawner class.
+                    Configurable options of the selected spawner class that must be populated by each user.
+                    Options can be different for each spawner class
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
                 tenants:
-                  description: The set of tenants enabled to spawn on this resource
+                  description: The set of Tenants enabled to use this Spawner
                   type: array
                   items:
                     type: string

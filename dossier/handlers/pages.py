@@ -106,14 +106,29 @@ class DossierSpawnerHandler(BaseHandler):
             user = self.find_user(user_name)
             if user is None:
                 raise web.HTTPError(404, f"No such user: {user_name}")
+        if user.spawner is None:
+            raise web.HTTPError(
+                500,
+                f"User spawner is None, but it should be a "
+                "DossierKubeSpawner instance.",
+            )
+        if not isinstance(user.spawner, DossierKubeSpawner):
+            raise web.HTTPError(
+                500,
+                f"Invalid spawner class {user.spawner.__class__.__name__}. "
+                "User spawner should be a DossierKubeSpawner instance.",
+            )
         spawners = {
-            t["metadata"]["name"]: t for t in await utils.get_spawners(self.api)
+            t["metadata"]["name"]: t
+            for t in await utils.get_spawners(self.api)
+            if user.spawner.tenant in t["tenants"]
         }
         spawner_form_objs = [
             {
                 "name": "Dossier Spawner",
                 "slug": "default",
-                "description": "Spawns a Notebook on your Kubernetes Tenant",
+                "description": "Spawns a Notebook on the selected "
+                               f"'{user.spawner.tenant}' Kubernetes Tenant.",
             }
         ]
         for name in spawners:
@@ -130,7 +145,7 @@ class DossierSpawnerHandler(BaseHandler):
         url = url_path_join(self.hub.base_url, "spawner", user.escaped_name)
         html = await self.render_template(
             "spawners.html",
-            url=url,
+            url=url_concat(url, {"_xsrf": self.xsrf_token.decode("ascii")}),
             spawners=spawners,
         )
         return self.finish(html)
@@ -173,7 +188,7 @@ class DossierSpawnerHandler(BaseHandler):
                 "server": spawner._server,
                 "config": spawner.config,
             }
-            kwargs = {**default_args, **s["spec"]["parameters"]}
+            kwargs = {**default_args, **s["spec"]["attributes"]}
             spawner.spawner = class_(**kwargs)
             next_url = self.get_next_url(
                 user, default=url_path_join(self.hub.base_url, "spawn")
