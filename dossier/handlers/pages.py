@@ -1,19 +1,95 @@
 import importlib
+import logging
 from typing import Any
 
 from jupyterhub.handlers import BaseHandler
+from jupyterhub.handlers.pages import SpawnHandler
 from jupyterhub.utils import maybe_future, url_path_join
+from kubernetes_asyncio.client import CustomObjectsApi
 from kubespawner.clients import load_config, shared_client
 from slugify import slugify
 from tornado import httputil, web
+from tornado.httputil import url_concat
+from tornado.web import Application
 
 from dossier import utils
+from dossier.spawners.kubernetes import DossierKubeSpawner
+
+
+class DossierSpawnHandler(SpawnHandler):
+
+    def __init__(
+        self,
+        application: Application,
+        request: httputil.HTTPServerRequest,
+        **kwargs: Any,
+    ):
+        super().__init__(application, request, **kwargs)
+        load_config()
+        self.api: CustomObjectsApi = shared_client("CustomObjectsApi")
+
+    async def _wrap_spawn_single_user(
+        self, user, server_name, spawner, pending_url, options=None
+    ):
+        if isinstance(spawner, DossierKubeSpawner) and spawner.tenant is None:
+            tenants = {
+                t["metadata"]["name"]: t for t in await utils.get_tenants(self.api)
+            }
+            user_groups = {g.name for g in user.orm_user.groups}
+            user_tenants = {t for t in tenants if t in user_groups}
+            if len(user_tenants) == 0:
+                if spawner.default_tenant:
+                    if self.log.isEnabledFor(logging.DEBUG):
+                        self.log.debug(
+                            f"User '{user.escaped_name}' has no tenants assigned. "
+                            f"Checking default tenant {spawner.default_tenant}."
+                        )
+                    if spawner.default_tenant in tenants:
+                        spawner.tenant = tenants[spawner.default_tenant]
+                        spawner_options_form = await spawner.get_options_form()
+                        if spawner_options_form:
+                            self.log.debug(
+                                "Serving options form for %s", spawner._log_name
+                            )
+                            form = await self._render_form(
+                                for_user=user,
+                                spawner_options_form=spawner_options_form,
+                            )
+                            await maybe_future(self.finish(form))
+                        else:
+                            self.log.debug(
+                                "Triggering spawn with default options for %s",
+                                spawner._log_name,
+                            )
+                            return await super()._wrap_spawn_single_user(
+                                user, server_name, spawner, pending_url
+                            )
+                raise web.HTTPError(
+                    403,
+                    f"User {user.name} has no tenants assigned and "
+                    "no default tenant is defined.",
+                )
+            elif len(user_tenants) == 1:
+                spawner.tenant = tenants[next(iter(user_tenants))]
+                if self.log.isEnabledFor(logging.DEBUG):
+                    self.log.debug(
+                        f"User {user.name} has a single existing "
+                        f"tenant assigned: {spawner.tenant}."
+                    )
+            else:
+                url = url_path_join(self.hub.base_url, "tenant", user.escaped_name)
+                self.redirect(url)
+                return
+        else:
+            return await super()._wrap_spawn_single_user(
+                user, server_name, spawner, pending_url
+            )
 
 
 class DossierSpawnerHandler(BaseHandler):
     def __init__(
         self,
-        application: "Application",
+        application: Application,
         request: httputil.HTTPServerRequest,
         **kwargs: Any,
     ):
@@ -104,13 +180,13 @@ class DossierSpawnerHandler(BaseHandler):
             )
             self.redirect(next_url)
         else:
-            raise web.HTTPError(404, "Spawner {} is not defined.", spawner_name, self)
+            raise web.HTTPError(404, f"Spawner {spawner_name} is not defined.")
 
 
 class DossierTenantHandler(BaseHandler):
     def __init__(
         self,
-        application: "Application",
+        application: Application,
         request: httputil.HTTPServerRequest,
         **kwargs: Any,
     ):
@@ -128,11 +204,8 @@ class DossierTenantHandler(BaseHandler):
             if user is None:
                 raise web.HTTPError(404, f"No such user: {user_name}")
         tenants = {t["metadata"]["name"]: t for t in await utils.get_tenants(self.api)}
-        user_tenants = {
-            k: v
-            for k, v in tenants.items()
-            if k in (await user.get_auth_state()).get("tenants", [])
-        }
+        user_groups = {g.name for g in user.orm_user.groups}
+        user_tenants = {k: v for k, v in tenants.items() if k in user_groups}
         tenant_form_objs = []
         for name, tenant in user_tenants.items():
             annotations = tenant["metadata"]["annotations"]
@@ -147,7 +220,9 @@ class DossierTenantHandler(BaseHandler):
             tenant_form_objs.append(tenant_form_obj)
         html = await self.render_template(
             "tenants.html",
-            url=self.request.uri,
+            url=url_concat(
+                self.request.uri, {"_xsrf": self.xsrf_token.decode("ascii")}
+            ),
             tenants=tenant_form_objs,
         )
         await maybe_future(self.finish(html))
@@ -166,23 +241,29 @@ class DossierTenantHandler(BaseHandler):
         for key, byte_list in self.request.body_arguments.items():
             form_options[key] = [bs.decode("utf8") for bs in byte_list]
         tenant = form_options.get("tenant")[0]
-        auth_state = await user.get_auth_state()
-        if tenant in auth_state["tenants"]:
+        if tenant in (g.name for g in user.orm_user.groups):
             if t := await utils.get_tenant(self.api, tenant):
+                if self.log.isEnabledFor(logging.DEBUG):
+                    self.log.debug(
+                        f"User {user_name} chose to spawn a Notebook on tenant {tenant}"
+                    )
                 spawner.tenant = t
                 next_url = self.get_next_url(
                     user, default=url_path_join(self.hub.base_url, "spawn")
                 )
                 self.redirect(next_url)
             else:
-                raise web.HTTPError(404, "Tenant {} is not defined.", tenant, self)
+                raise web.HTTPError(404, f"Tenant {tenant} is not defined.")
         else:
             raise web.HTTPError(
-                403, "User {} is not assigned to tenant {}.", user.name, tenant, self
+                403, f"User {user.name} is not assigned to tenant {tenant}."
             )
 
 
 default_handlers = [
+    (r"/spawn", DossierSpawnHandler),
+    (r"/spawn/([^/]+)", DossierSpawnHandler),
+    (r"/spawn/([^/]+)/([^/]+)", DossierSpawnHandler),
     (r"/spawner", DossierSpawnerHandler),
     (r"/spawner/([^/]+)", DossierSpawnerHandler),
     (r"/tenant", DossierTenantHandler),

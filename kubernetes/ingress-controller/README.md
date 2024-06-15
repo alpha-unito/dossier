@@ -47,7 +47,7 @@ The [cert-manager](https://cert-manager.io/) tool can be combined with Contour t
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.11.0/cert-manager.crds.yaml
 ```
 
-It is worth noting that CRDs could also be installed directly with Helm, through the `installCRDs` option, but in this scenarion a removal of the Helm release also implies the deletion of all CRDs and all the related custom resources, which is not desirable.
+It is worth noting that CRDs could also be installed directly with Helm, through the `installCRDs` option, but in this scenario a removal of the Helm release also implies the deletion of all CRDs and all the related custom resources, which is not desirable.
 
 The next step requires to configure the `JetStack` Helm repo and to install the desired version of `cert-manager` in a reserved `cert-manager` namespace
 

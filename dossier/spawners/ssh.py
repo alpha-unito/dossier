@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import shutil
 from tempfile import TemporaryDirectory
@@ -75,7 +77,7 @@ class SSHSpawner(Spawner):
         config=True,
     )
 
-    # Options to specify whether the Spawner should enabel the client to
+    # Options to specify whether the Spawner should enable the client to
     # create a backward ssh tunnnel to the JupyterHub instance
     ssh_backtunnel_client = Bool(default=False, config=True)
 
@@ -97,7 +99,7 @@ class SSHSpawner(Spawner):
             client_keys=[(key, certificate)],
             known_hosts=None,
         ) as conn:
-            mkdir_cmd = "mkdir -p {path} 2>/dev/null".format(path=dst)
+            mkdir_cmd = f"mkdir -p {dst} 2>/dev/null"
             _ = await conn.run(mkdir_cmd)
 
         # copy files
@@ -182,8 +184,8 @@ class SSHSpawner(Spawner):
                 )
 
         if self.hub_api_url != "":
-            old = "--hub-api-url={}".format(self.hub.api_url)
-            new = "--hub-api-url={}".format(self.hub_api_url)
+            old = f"--hub-api-url={self.hub.api_url}"
+            new = f"--hub-api-url={self.hub_api_url}"
             for index, value in enumerate(cmd):
                 if value == old:
                     cmd[index] = new
@@ -195,7 +197,7 @@ class SSHSpawner(Spawner):
 
         self.pid = await self.exec_notebook(remote_cmd)
 
-        self.log.debug("Starting User: {}, PID: {}".format(self.user.name, self.pid))
+        self.log.debug(f"Starting User: {self.user.name}, PID: {self.pid}")
 
         if self.pid < 0:
             return None
@@ -215,7 +217,7 @@ class SSHSpawner(Spawner):
 
         # send signal 0 to check if PID exists
         alive = await self.remote_signal(0)
-        self.log.debug("Polling returned {}".format(alive))
+        self.log.debug(f"Polling returned {alive}")
 
         if not alive:
             self.clear_state()
@@ -261,12 +263,12 @@ class SSHSpawner(Spawner):
         if stdout != b"":
             port = stdout
             port = int(port)
-            self.log.debug("port={}".format(port))
+            self.log.debug(f"port={port}")
         else:
             port = None
             self.log.error("Failed to get a remote port")
-            self.log.error("STDERR={}".format(stderr))
-            self.log.debug("EXITSTATUS={}".format(retcode))
+            self.log.error(f"STDERR={stderr}")
+            self.log.debug(f"EXITSTATUS={retcode}")
 
         ip = self.remote_host
         return ip, port
@@ -275,7 +277,7 @@ class SSHSpawner(Spawner):
     async def exec_notebook(self, command):
         """TBD"""
 
-        env = super(SSHSpawner, self).get_env()
+        env = super().get_env()
         env["JUPYTERHUB_API_URL"] = self.hub_api_url
         env["JUPYTERHUB_ACTIVITY_URL"] = url_path_join(
             self.hub_api_url,
@@ -302,13 +304,13 @@ class SSHSpawner(Spawner):
         bash_script_str += "%s < /dev/null >> .jupyter.log 2>&1 & pid=$!\n" % command
         bash_script_str += "echo $pid\n"
 
-        run_script = "/tmp/{}_run.sh".format(self.user.name)
+        run_script = f"/tmp/{self.user.name}_run.sh"
         with open(run_script, "w") as f:
             f.write(bash_script_str)
         if not os.path.isfile(run_script):
             raise Exception("The file " + run_script + "was not created.")
         else:
-            with open(run_script, "r") as f:
+            with open(run_script) as f:
                 self.log.debug(run_script + " was written as:\n" + f.read())
 
         async with asyncssh.connect(
@@ -319,7 +321,7 @@ class SSHSpawner(Spawner):
             _ = result.stderr
             retcode = result.exit_status
 
-        self.log.debug("exec_notebook status={}".format(retcode))
+        self.log.debug(f"exec_notebook status={retcode}")
         if stdout != b"":
             pid = int(stdout)
         else:
