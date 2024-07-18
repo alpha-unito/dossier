@@ -72,6 +72,7 @@ def _get_resource_amount_in_bytes(value):
 class DossierKubeSpawner(KubeSpawner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._original_namespace = self.namespace
         self.custom_api = shared_client("CustomObjectsApi")
         self.spawner = None
         self.tenant: MutableMapping[str, Any] | None = None
@@ -275,7 +276,7 @@ class DossierKubeSpawner(KubeSpawner):
     async def _start(self):
         prefix = self.tenant["metadata"]["name"]
         if not self.namespace.startswith(f"{prefix}-"):
-            self.namespace = f"{prefix}-{self.namespace}"
+            self.namespace = f"{prefix}-{self._original_namespace}"
         return await maybe_future(super()._start())
 
     async def get_options_form(self):
