@@ -1,4 +1,4 @@
-FROM jupyterhub/k8s-hub:3.3.7 AS builder
+FROM jupyterhub/k8s-hub:3.3.8 AS builder
 
 USER root
 
@@ -18,7 +18,7 @@ COPY ./share/ /build/share
 RUN cd /build \
     && pip install .
 
-FROM jupyterhub/k8s-hub:3.3.7
+FROM jupyterhub/k8s-hub:3.3.8
 
 COPY --from=builder /usr/local/bin/dossier /usr/local/bin/dossier
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
